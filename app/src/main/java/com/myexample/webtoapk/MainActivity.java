@@ -208,23 +208,18 @@ public class MainActivity extends AppCompatActivity {
         webview.addJavascriptInterface(webAppInterface, "WebToApk");
 
         WebSettings webSettings = webview.getSettings();
-        webSettings.setJavaScriptEnabled(JSEnabled);
-        webSettings.setJavaScriptCanOpenWindowsAutomatically(JSCanOpenWindowsAutomatically);
-        webSettings.setGeolocationEnabled(geolocationEnabled);
-        webSettings.setDomStorageEnabled(DomStorageEnabled);
-        webSettings.setDatabaseEnabled(DatabaseEnabled);
-        webSettings.setMediaPlaybackRequiresUserGesture(MediaPlaybackRequiresUserGesture);
-        webSettings.setSavePassword(SavePassword);
-        webSettings.setAllowFileAccess(AllowFileAccess);
-        webSettings.setAllowFileAccessFromFileURLs(AllowFileAccessFromFileURLs);
+        webSettings.setJavaScriptEnabled(true); // 强制开启
+        webSettings.setJavaScriptCanOpenWindowsAutomatically(true);
+        webSettings.setDomStorageEnabled(true); // 强制开启
+        webSettings.setDatabaseEnabled(true);
+        webSettings.setAppCacheEnabled(true); // 针对老设备
+        webSettings.setAllowFileAccess(true);
+        webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW); // 强制允许混合内容 (ws://)
+        
         webSettings.setUseWideViewPort(true);
         webSettings.setLoadWithOverviewMode(true);
         // 强制开启远程调试
         WebView.setWebContentsDebuggingEnabled(true);
-
-        if (allowMixedContent) {
-            webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-        }
 
         if (!userAgent.isEmpty()) {
             webSettings.setUserAgentString(userAgent);
