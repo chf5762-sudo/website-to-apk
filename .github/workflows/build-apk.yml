@@ -18,7 +18,7 @@ jobs:
         run: |
           set -x
           (
-            sed -i 's/\r$//' make.sh gradlew
+            sed -i 's/\r$//' make.sh gradlew app.conf
             chmod +x make.sh gradlew
             # Remove hardcoded ANDROID_HOME from make.sh to use GitHub's pre-installed SDK
             sed -i 's/export ANDROID_HOME=.*//' make.sh
