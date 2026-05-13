@@ -122,7 +122,7 @@ public class MainActivity extends AppCompatActivity {
 
     String cookies = "";
     String basicAuth = "";
-    String userAgent = "";
+    String userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36";
     boolean blockLocalhostRequests = true;
     boolean JSEnabled = true;
     boolean JSCanOpenWindowsAutomatically = true;
@@ -133,10 +133,10 @@ public class MainActivity extends AppCompatActivity {
     boolean AllowFileAccess = true;
     boolean AllowFileAccessFromFileURLs = true;
     boolean showDetailsOnErrorScreen = false;
-    boolean forceLandscapeMode = false;
+    boolean forceLandscapeMode = true;
     boolean edgeToEdge = false;
     boolean forceDarkTheme = false;
-    boolean allowMixedContent = false;
+    boolean allowMixedContent = true;
     String cacheMode = "default";
     int fadeInDuration = 400;
     boolean DebugWebView = false;
@@ -803,31 +803,21 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onReceivedSslError(WebView view, final SslErrorHandler handler, SslError error) {
             String failingUrl = error.getUrl();
-            String currentUrl = view.getUrl();
-            boolean isMainPage = (currentUrl != null && failingUrl != null && failingUrl.equals(currentUrl));
-            if (!isMainPage) {
-                handler.cancel();
+            String mainDomain = Uri.parse(MainActivity.this.mainURL).getHost();
+
+            // Auto-proceed if the error is from our main domain (common on old Android TVs)
+            if (failingUrl != null && mainDomain != null && failingUrl.contains(mainDomain)) {
+                Log.w("WebToApk", "SSL Error on main domain. Proceeding anyway for TV compatibility.");
+                handler.proceed();
                 return;
             }
 
+            // For other domains, show the standard dialog
             final AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
             builder.setMessage(R.string.notification_error_ssl_cert_invalid);
-
-            builder.setPositiveButton("continue", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    handler.proceed();
-                }
-            });
-
-            builder.setNegativeButton("cancel", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    handler.cancel();
-                }
-            });
-            final AlertDialog dialog = builder.create();
-            dialog.show();
+            builder.setPositiveButton("continue", (dialog, which) -> handler.proceed());
+            builder.setNegativeButton("cancel", (dialog, which) -> handler.cancel());
+            builder.create().show();
         }
 
         // Handle HTTP Basic Auth
