@@ -4,30 +4,21 @@ on:
     branches:
       - master
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      
-      - name: set up JDK 17
-        uses: actions/setup-java@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-          
-      - name: Build APK
-        shell: bash
+      - shell: bash
         run: |
           chmod +x make.sh
-          # Generate key if not exists (default password is '123456' as per README)
-          # Using printf to avoid heredoc indentation issues in YAML
           printf "123456\n123456\nEasyShow\nTV\nDev\nCN\nyes\n" | ./make.sh keygen
           ./make.sh build app.conf
-          
-      - name: Upload APK
-        uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: app-release
           path: ./*.apk
