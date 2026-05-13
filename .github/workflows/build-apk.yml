@@ -18,18 +18,12 @@ jobs:
           distribution: 'temurin'
           
       - name: Build APK
+        shell: bash
         run: |
           chmod +x make.sh
           # Generate key if not exists (default password is '123456' as per README)
-          ./make.sh keygen <<EOF
-          123456
-          123456
-          EasyShow
-          TV
-          Dev
-          CN
-          yes
-          EOF
+          # Using printf to avoid heredoc indentation issues in YAML
+          printf "123456\n123456\nEasyShow\nTV\nDev\nCN\nyes\n" | ./make.sh keygen
           ./make.sh build app.conf
           
       - name: Upload APK
