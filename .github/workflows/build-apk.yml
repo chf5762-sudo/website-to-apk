@@ -15,7 +15,10 @@ jobs:
           distribution: 'temurin'
       - shell: bash
         run: |
-          chmod +x make.sh
+          sudo apt-get update && sudo apt-get install -y dos2unix
+          dos2unix make.sh gradlew
+          chmod +x make.sh gradlew
+          ls -la
           printf "123456\n123456\nEasyShow\nTV\nDev\nCN\nyes\n" | ./make.sh keygen
           ./make.sh build app.conf
       - uses: actions/upload-artifact@v4
