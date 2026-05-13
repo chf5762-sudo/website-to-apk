@@ -212,7 +212,6 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setJavaScriptCanOpenWindowsAutomatically(true);
         webSettings.setDomStorageEnabled(true); // 强制开启
         webSettings.setDatabaseEnabled(true);
-        webSettings.setAppCacheEnabled(true); // 针对老设备
         webSettings.setAllowFileAccess(true);
         webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW); // 强制允许混合内容 (ws://)
         
