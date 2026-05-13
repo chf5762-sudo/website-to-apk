@@ -17,14 +17,16 @@ jobs:
         shell: bash
         run: |
           set -x
-          (
-            sed -i 's/\r$//' make.sh gradlew app.conf
-            chmod +x make.sh gradlew
-            # Remove hardcoded ANDROID_HOME from make.sh to use GitHub's pre-installed SDK
-            sed -i 's/export ANDROID_HOME=.*//' make.sh
-            printf "123456\n123456\nEasyShow\nTV\nDev\nCN\nyes\n" | ./make.sh keygen
-            ./make.sh build app.conf
-          ) 2>&1 | tee build.log
+          # Ensure all scripts and configs are in LF format
+          for f in make.sh gradlew app.conf; do
+            tr -d '\r' < "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+          done
+          chmod +x make.sh gradlew
+          # Only remove the specific path that would crash the build
+          sed -i 's/export ANDROID_HOME=.*//' make.sh
+          printf "123456\n123456\nEasyShow\nTV\nDev\nCN\nyes\n" | ./make.sh keygen
+          ./make.sh build app.conf
+        continue-on-error: false
       - name: Upload Build Log
         if: always()
         uses: actions/upload-artifact@v4

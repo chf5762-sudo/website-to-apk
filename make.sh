@@ -269,14 +269,13 @@ clean() {
     info "Cleaning build files..."
     try rm -rf app/build .gradle
     apply_config app/default.conf
-    log "Clean completed"
 }
 
 
 chid() {
     [ -z "$1" ] && error "Please provide an application ID"
 
-    if ! [[ $1 =~ ^[a-zA-Z][a-zA-Z0-9_]*$ ]]; then
+    if [[ ! "$1" =~ ^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$ ]]; then
         error "Invalid application ID. Use only letters, numbers and underscores, start with a letter"
     fi
 
