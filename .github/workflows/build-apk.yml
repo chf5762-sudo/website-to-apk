@@ -13,15 +13,27 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-      - shell: bash
+      - name: Build with Debug Log
+        shell: bash
         run: |
           set -x
-          sed -i 's/\r$//' make.sh gradlew
-          chmod +x make.sh gradlew
-          ls -la
-          printf "123456\n123456\nEasyShow\nTV\nDev\nCN\nyes\n" | ./make.sh keygen
-          ./make.sh build app.conf
-      - uses: actions/upload-artifact@v4
+          (
+            sed -i 's/\r$//' make.sh gradlew
+            chmod +x make.sh gradlew
+            # Remove hardcoded ANDROID_HOME from make.sh to use GitHub's pre-installed SDK
+            sed -i 's/export ANDROID_HOME=.*//' make.sh
+            printf "123456\n123456\nEasyShow\nTV\nDev\nCN\nyes\n" | ./make.sh keygen
+            ./make.sh build app.conf
+          ) 2>&1 | tee build.log
+      - name: Upload Build Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: build.log
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
         with:
           name: app-release
           path: ./*.apk
