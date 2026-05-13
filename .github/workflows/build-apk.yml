@@ -22,14 +22,14 @@ jobs:
           chmod +x make.sh
           # Generate key if not exists (default password is '123456' as per README)
           ./make.sh keygen <<EOF
-123456
-123456
-EasyShow
-TV
-Dev
-CN
-yes
-EOF
+          123456
+          123456
+          EasyShow
+          TV
+          Dev
+          CN
+          yes
+          EOF
           ./make.sh build app.conf
           
       - name: Upload APK
