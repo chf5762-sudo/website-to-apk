@@ -219,7 +219,8 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setAllowFileAccessFromFileURLs(AllowFileAccessFromFileURLs);
         webSettings.setUseWideViewPort(true);
         webSettings.setLoadWithOverviewMode(true);
-        webview.setWebContentsDebuggingEnabled(DebugWebView);
+        // 强制开启远程调试
+        WebView.setWebContentsDebuggingEnabled(true);
 
         if (allowMixedContent) {
             webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
@@ -567,29 +568,19 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public boolean onConsoleMessage(ConsoleMessage consoleMessage) {
-            String src = consoleMessage.sourceId();
-            Integer line = consoleMessage.lineNumber();
             String msg = consoleMessage.message();
-
-            if (src.startsWith("http://") || src.startsWith("https://")) {
-                src = src.substring(8);
-                Log.e("WebToApk", "[" + src + ":" + line + "] " + msg);
-            } else {
-                // User scripts colorful
-                switch (consoleMessage.messageLevel()) {
-                    case ERROR:
-                        Log.e("WebToApk", "\033[0;31m[" + src + ":" + line  +"] " + msg + "\033[0m");
-                        break;
-                    case WARNING:
-                        Log.w("WebToApk", "\033[1;33m[" + src + ":" +  line +"]\033[0m " + msg);
-                        break;
-                    case LOG:
-                    case DEBUG:
-                    case TIP:
-                        Log.d("WebToApk", "\033[0;34m[" + src + ":" +  line +"]\033[0m " + msg);
-                        break;
-                }
+            String src = consoleMessage.sourceId();
+            int line = consoleMessage.lineNumber();
+            
+            // 暴力调试：将所有错误直接弹窗到电视屏幕上
+            if (consoleMessage.messageLevel() == ConsoleMessage.MessageLevel.ERROR) {
+                final String errorMsg = "❌ JS ERR: " + msg + "\n(" + src + ":" + line + ")";
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, errorMsg, Toast.LENGTH_LONG).show());
+            } else if (consoleMessage.messageLevel() == ConsoleMessage.MessageLevel.WARNING) {
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "⚠️ " + msg, Toast.LENGTH_SHORT).show());
             }
+
+            Log.d("WebViewDebug", "[" + consoleMessage.messageLevel() + "] " + msg + " (" + src + ":" + line + ")");
             return true;
         }
 
@@ -812,21 +803,25 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onReceivedSslError(WebView view, final SslErrorHandler handler, SslError error) {
             String failingUrl = error.getUrl();
-            String mainDomain = Uri.parse(MainActivity.this.mainURL).getHost();
-
-            // Auto-proceed if the error is from our main domain (common on old Android TVs)
-            if (failingUrl != null && mainDomain != null && failingUrl.contains(mainDomain)) {
-                Log.w("WebToApk", "SSL Error on main domain. Proceeding anyway for TV compatibility.");
-                handler.proceed();
-                return;
+            int primaryError = error.getPrimaryError();
+            String reason = "Unknown";
+            switch (primaryError) {
+                case SslError.SSL_EXPIRED: reason = "Expired (过期)"; break;
+                case SslError.SSL_IDMISMATCH: reason = "ID Mismatch (域名不匹配)"; break;
+                case SslError.SSL_NOTYETVALID: reason = "Not Yet Valid (尚未生效)"; break;
+                case SslError.SSL_UNTRUSTED: reason = "Untrusted (不受信任)"; break;
             }
-
-            // For other domains, show the standard dialog
-            final AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-            builder.setMessage(R.string.notification_error_ssl_cert_invalid);
-            builder.setPositiveButton("continue", (dialog, which) -> handler.proceed());
-            builder.setNegativeButton("cancel", (dialog, which) -> handler.cancel());
-            builder.create().show();
+            
+            final String diagnosticMsg = "🛡️ SSL Alert: " + reason + "\nURL: " + failingUrl;
+            Log.e("TV_DEBUG", diagnosticMsg);
+            
+            // 针对测试，强制通过所有 SSL 错误
+            handler.proceed();
+            
+            // 如果是主域名或重要域名，在屏幕上弹个小提示方便调试
+            if (failingUrl != null && (failingUrl.contains("emqx") || failingUrl.contains("cloudflare"))) {
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, diagnosticMsg, Toast.LENGTH_SHORT).show());
+            }
         }
 
         // Handle HTTP Basic Auth
@@ -1023,6 +1018,8 @@ public class MainActivity extends AppCompatActivity {
                 if (webview.getAlpha() == 0f) {
                     webview.animate().alpha(1f).setDuration(fadeInDuration).start();
                 }
+                // 弹出加载成功提示
+                Toast.makeText(MainActivity.this, "✅ 页面加载完成", Toast.LENGTH_SHORT).show();
             }
             super.onPageFinished(webview, url);
         }
