@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Android TV Optimization Patch
-// @match       *://easyshow.beundredig.eu.org/remote.html*
+// @match       *://easyshow.beundredig.eu.org/remote*
 // @run-at      document-start
 // ==/UserScript==
 
