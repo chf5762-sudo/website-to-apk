@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name        Android TV Optimization Patch
-// @match       *://easyshow.beundredig.eu.org/remote*
+// @match       file:///*
 // @run-at      document-start
 // ==/UserScript==
 
 (function() {
     console.log("📺 Android TV Optimization Patch Active");
 
-    // 1. 立即注入 CSS 优化 (移除所有 backdrop-filter)
+    // 1. 立即注入 CSS 优化 (移除所�?backdrop-filter)
     const style = document.createElement('style');
     style.textContent = `
         * {
@@ -31,11 +31,11 @@
         });
     }
 
-    // 3. 等待 body 加载后进行 DOM 增强
+    // 3. 等待 body 加载后进�?DOM 增强
     window.addEventListener('DOMContentLoaded', () => {
-        console.log("🛠️ Injecting Double Buffering Elements...");
+        console.log("🛠�?Injecting Double Buffering Elements...");
         
-        // 自动补全可能缺失的 Next 元素 (如果远程代码还没更新)
+        // 自动补全可能缺失�?Next 元素 (如果远程代码还没更新)
         if (!document.getElementById('pdfCanvasNext')) {
             const original = document.getElementById('pdfCanvas');
             if (original) {
@@ -57,7 +57,7 @@
         }
     });
 
-    // 4. 暴力兼容性补丁 (Polyfills)
+    // 4. 暴力兼容性补�?(Polyfills)
     if (!Object.assign) {
         Object.assign = function(target, ...sources) {
             if (target == null) throw new TypeError('Cannot convert undefined or null to object');
