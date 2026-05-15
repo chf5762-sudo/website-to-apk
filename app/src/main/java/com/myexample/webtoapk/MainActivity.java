@@ -208,17 +208,19 @@ public class MainActivity extends AppCompatActivity {
         webview.addJavascriptInterface(webAppInterface, "WebToApk");
 
         WebSettings webSettings = webview.getSettings();
-        webSettings.setJavaScriptEnabled(true);
-        webSettings.setJavaScriptCanOpenWindowsAutomatically(true);
-        webSettings.setDomStorageEnabled(true);
-        webSettings.setDatabaseEnabled(true);
-        webSettings.setAllowFileAccess(true);
-        webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        webSettings.setJavaScriptEnabled(JSEnabled);
+        webSettings.setJavaScriptCanOpenWindowsAutomatically(JSCanOpenWindowsAutomatically);
+        webSettings.setDomStorageEnabled(DomStorageEnabled);
+        webSettings.setDatabaseEnabled(DatabaseEnabled);
+        webSettings.setAllowFileAccess(AllowFileAccess);
+        webSettings.setAllowFileAccessFromFileURLs(AllowFileAccessFromFileURLs);
+        webSettings.setSavePassword(SavePassword);
         
-        // 电视端优化：开启自动播放视频 (不需要用户手势)
-        webSettings.setMediaPlaybackRequiresUserGesture(false);
+        if (allowMixedContent && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        }
         
-        // 电视端优化：禁用缩放，防止误操作
+        webSettings.setMediaPlaybackRequiresUserGesture(MediaPlaybackRequiresUserGesture);
         webSettings.setSupportZoom(false);
         webSettings.setBuiltInZoomControls(false);
         webSettings.setDisplayZoomControls(false);
@@ -226,10 +228,7 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setUseWideViewPort(true);
         webSettings.setLoadWithOverviewMode(true);
         
-        // 强制开启硬件加速
         webview.setLayerType(View.LAYER_TYPE_HARDWARE, null);
-        
-        // 开启调试模式
         WebView.setWebContentsDebuggingEnabled(true);
 
         if (!userAgent.isEmpty()) {
