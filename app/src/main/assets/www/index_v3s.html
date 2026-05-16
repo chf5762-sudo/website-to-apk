@@ -143,14 +143,27 @@
                 }
             });
 
-            // 获取房间号
+            // 获取房间号并计算签名
             var room = (new RegExp('[?&]room=([^&]+)').exec(location.search) || [])[1];
             if (room) {
                 window.tvLog('🏠 Room: ' + room);
-                // 这里简化了计算，确保与控制端一致
-                var sig = 'fixed_sig'; // 实际环境建议根据算法动态生成
-                CONTROL_TOPIC += '_' + room;
-                STATUS_TOPIC += '_' + room;
+                var sig = (function(input) {
+                    var h = 2166136261;
+                    for (var i = 0; i < input.length; i++) {
+                        h ^= input.charCodeAt(i);
+                        var a = (h >>> 16) & 0xffff, b = h & 0xffff;
+                        var c = (16777619 >>> 16) & 0xffff, d = 16777619 & 0xffff;
+                        h = ((b * d) + (((a * d + b * c) << 16) >>> 0)) | 0;
+                    }
+                    var s = (h >>> 0).toString(16);
+                    while(s.length < 8) s = '0' + s;
+                    return s;
+                })(BEMFA_KEY + ':' + room);
+                
+                var suffix = '_' + room + '_' + sig;
+                CONTROL_TOPIC += suffix;
+                STATUS_TOPIC += suffix;
+                window.tvLog('📡 Full Topic: ' + CONTROL_TOPIC);
             }
 
             connectMQTT();
