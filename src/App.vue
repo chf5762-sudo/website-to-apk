@@ -2,7 +2,7 @@
   <main class="app-shell">
     <iframe
       class="remote-frame"
-      src="/remote.html"
+      src="./remote.html"
       title="Remote Frontend"
       loading="eager"
     />
