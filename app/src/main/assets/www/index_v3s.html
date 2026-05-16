@@ -44,7 +44,7 @@
             log('INIT', 'System Start (Full Features)');
             
             // 1. ????
-            var room = (new RegExp("[?&]room=([^&]+)").exec(location.search) || [])[1];
+            var room = (new RegExp("[?&]room=([^var room = (new RegExp]+)").exec(location.search) || [])[1] || "123"; // ?????? 123("[?&]room=([^&]+)").exec(location.search) || [])[1];
             var finalTopic = BASE_TOPIC;
             if (room) {
                 log('ROOM', 'Detected Room ID: <span class="data">' + room + '</span>');
@@ -100,6 +100,7 @@
             var type = data.t || data.type || 'image';
             if (url && url.indexOf('http') !== 0) url = 'http://easyshow.beundredig.eu.org' + url;
 
+if(!url) return;
             log('ACTION', 'Type: <span class="data">' + type + '</span> | URL: <span class="data">' + url + '</span>');
 
             if (type === 'image' || (!type && url)) {
