@@ -63,7 +63,7 @@ jobs:
           </widget>
           EOF
 
-          cordova platform add android@11.0.0
+          cordova platform add android@13.0.0
 
           rm -rf www/*
           rsync -av --delete ../ ./www/ \
