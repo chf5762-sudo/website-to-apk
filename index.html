@@ -15,7 +15,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        window.addEventListener('error', function (e) { console.error('RuntimeError:', e.message); });
+        window.addEventListener('unhandledrejection', function (e) { console.error('PromiseRejection:', e.reason); });
+        if (window.pdfjsLib && window.pdfjsLib.GlobalWorkerOptions) {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
     </script>
     <style>
         * {
@@ -1711,6 +1715,11 @@
 
 
 
+                    if (!window.mqtt || !window.mqtt.connect) {
+                        showToast('MQTT SDK 加载失败，请检查网络后重试');
+                        updateConnectionStatus('error');
+                        return;
+                    }
                     window.mqttClient = mqttClient = mqtt.connect(MQTT_URL, {
                         clientId: SESSION_ID,
                         clean: true,
@@ -2277,6 +2286,10 @@
                     } else {
                         // PDF 文件处理
                         console.log('📄 检测到 PDF 文件');
+                        if (!window.pdfjsLib || !window.pdfjsLib.getDocument) {
+                            showToast('PDF 组件加载失败，请检查网络后重试');
+                            return;
+                        }
                         const loadingTask = pdfjsLib.getDocument(pdfUrl);
                         pdfDoc = await loadingTask.promise;
                         totalPages = pdfDoc.numPages;
