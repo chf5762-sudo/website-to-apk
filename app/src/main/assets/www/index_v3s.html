@@ -2,25 +2,19 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>TV App Debug</title>
+    <title>Mirrored MQTT Debug</title>
     <script src="scripts/mqtt.min.js"></script>
     <style>
         body { background: #000; color: #fff; margin: 0; padding: 0; overflow: hidden; }
         #log-panel {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9);
-            color: #0f0;
-            font-size: 16px;
-            padding: 10px;
-            overflow-y: auto;
-            z-index: 9999;
-            border: 2px solid #0f0;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); color: #0f0; font-size: 16px; padding: 10px;
+            overflow-y: auto; border: 2px solid #0f0;
         }
         .status-dot {
             position: fixed; top: 10px; right: 10px;
             width: 20px; height: 20px; border-radius: 50%;
-            background: red; z-index: 10000;
+            background: red;
         }
     </style>
 </head>
@@ -38,43 +32,50 @@
             p.scrollTop = p.scrollHeight;
         }
 
-        var MQTT_URL = 'ws://broker.emqx.io:8083/mqtt';
+        // --- 完全镜像 HBuilder_TV_App 的参数 ---
+        var MQTT_URL = 'wss://broker.emqx.io:8084/mqtt'; 
         var TOPIC = '3eb42d69d8b226abe22024d648975f8a/PPT001';
-        var CLIENT_ID = 'TV_' + Math.floor(Math.random()*10000);
+        var CLIENT_ID = 'TV_' + Math.floor(Math.random()*1000000);
 
         window.onload = function() {
-            tvLog('=== TV APP START (V4_CLEAN) ===');
+            tvLog('=== MIRRORED VERSION START ===');
             
             if (typeof mqtt === 'undefined') {
-                tvLog('ERROR: MQTT Library NOT FOUND!', 'error');
+                tvLog('ERROR: mqtt library not loaded!', 'error');
                 return;
             }
 
             tvLog('Connecting to: ' + MQTT_URL);
             try {
+                // 完全匹配成功版的 options
                 var client = mqtt.connect(MQTT_URL, {
                     clientId: CLIENT_ID,
-                    protocolId: 'MQIsdp',
-                    protocolVersion: 3,
-                    reconnectPeriod: 5000
+                    clean: true,
+                    connectTimeout: 4000,
+                    reconnectPeriod: 3000,
+                    protocolVersion: 4
                 });
 
                 client.on('connect', function() {
-                    tvLog('CONNECTED TO BROKER!', 'success');
+                    tvLog('SUCCESS: CONNECTED TO BROKER!', 'success');
                     document.getElementById('mqtt-dot').style.background = 'green';
                     client.subscribe(TOPIC);
                     tvLog('Subscribed to: ' + TOPIC);
                 });
 
                 client.on('message', function(t, m) {
-                    tvLog('MSG: ' + m.toString());
+                    tvLog('MSG RECEIVED: ' + m.toString());
                 });
 
                 client.on('error', function(e) {
-                    tvLog('MQTT ERR: ' + e.message, 'error');
+                    tvLog('MQTT ERROR: ' + e.message, 'error');
+                });
+
+                client.on('offline', function() {
+                    tvLog('STATUS: Client Offline', 'error');
                 });
             } catch (e) {
-                tvLog('CRASH: ' + e.message, 'error');
+                tvLog('CRITICAL CRASH: ' + e.message, 'error');
             }
         };
     </script>
