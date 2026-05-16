@@ -213,7 +213,8 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setDomStorageEnabled(DomStorageEnabled);
         webSettings.setDatabaseEnabled(DatabaseEnabled);
         webSettings.setAllowFileAccess(AllowFileAccess);
-        webSettings.setAllowFileAccessFromFileURLs(AllowFileAccessFromFileURLs);
+        webSettings.setAllowFileAccessFromFileURLs(true);
+        webSettings.setAllowUniversalAccessFromFileURLs(true);
         webSettings.setSavePassword(SavePassword);
         
         if (allowMixedContent && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
