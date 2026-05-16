@@ -40,7 +40,7 @@
             z-index: 10000;
             overflow-y: auto;
             border: 1px solid #0f0;
-            display: none;
+            display: block;
             pointer-events: none;
         }
 
@@ -82,7 +82,7 @@
         #agentScreenLayer {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 50; display: none; background: #000;
+            z-index: 50; display: block; background: #000;
             justify-content: center; align-items: center;
         }
 
@@ -98,9 +98,9 @@
             <h1 style="font-size: 40px; color: var(--neon-blue);">SYSTEM INITIALIZING</h1>
             <p style="margin-top: 20px; color: #888;">WAITING FOR SIGNAL...</p>
         </div>
-        <canvas id="pdfCanvas" style="display: none;"></canvas>
-        <img id="imageDisplay" style="display: none;" />
-        <video id="videoDisplay" style="display: none;" controls autoplay crossorigin="anonymous" playsinline oncontextmenu="return false;" onerror="window.tvLog('🎬 Video Error: ' + (this.error ? this.error.code : 'unknown'), 'error')"></video>
+        <canvas id="pdfCanvas" style="display: block;"></canvas>
+        <img id="imageDisplay" style="display: block;" />
+        <video id="videoDisplay" style="display: block;" controls autoplay crossorigin="anonymous" playsinline oncontextmenu="return false;" onerror="window.tvLog('🎬 Video Error: ' + (this.error ? this.error.code : 'unknown'), 'error')"></video>
         <div id="agentScreenLayer"></div>
     </div>
 
@@ -143,8 +143,7 @@
                 }
             });
 
-            // 获取房间号
-            var room = (new RegExp('[?&]room=([^&]+)').exec(location.search) || [])[1];
+            // 获取房间�?            var room = (new RegExp('[?&]room=([^&]+)').exec(location.search) || [])[1];
             if (room) {
                 window.tvLog('🏠 Room: ' + room);
                 var sig = (function(input) {
@@ -176,7 +175,7 @@
             dot.className = 'status-indicator yellow';
 
             if (typeof mqtt === 'undefined') {
-                window.tvLog('❌ CRITICAL: MQTT Library NOT FOUND!', 'error');
+                window.tvLog('�?CRITICAL: MQTT Library NOT FOUND!', 'error');
                 dot.className = 'status-indicator';
                 return;
             }
@@ -193,7 +192,7 @@
                 });
 
                 mqttClient.on('connect', function() {
-                    window.tvLog('✅ Connected to Broker', 'success');
+                    window.tvLog('�?Connected to Broker', 'success');
                     dot.className = 'status-indicator green';
                     mqttClient.subscribe(CONTROL_TOPIC);
                     mqttClient.subscribe(STATUS_TOPIC);
@@ -205,7 +204,7 @@
                 });
 
                 mqttClient.on('error', function(err) {
-                    window.tvLog('❌ MQTT Error: ' + err.message, 'error');
+                    window.tvLog('�?MQTT Error: ' + err.message, 'error');
                     dot.className = 'status-indicator';
                 });
 
