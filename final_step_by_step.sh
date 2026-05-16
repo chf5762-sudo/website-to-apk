@@ -1,3 +1,4 @@
+cat <<EOF > app/src/main/assets/www/index_v3s.html
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -129,3 +130,4 @@
     </script>
 </body>
 </html>
+EOF
