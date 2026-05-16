@@ -16,8 +16,86 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        // --- TV App Environment Flag ---
+        window.isRemoteApp = true;
+
+        // --- 全局兼容性补丁 (针对老电视) ---
+        if (!window.fetch) {
+            window.fetch = function(url, options) {
+                return new Promise(function(resolve, reject) {
+                    var xhr = new XMLHttpRequest();
+                    xhr.open(options.method || 'GET', url);
+                    xhr.onload = function() { resolve({ ok: true, json: function() { return JSON.parse(xhr.responseText); }, text: function() { return xhr.responseText; } }); };
+                    xhr.onerror = reject;
+                    xhr.send(options.body);
+                });
+            };
+        }
+
+        // --- 全局错误捕获 ---
+        window.onerror = function(msg, url, line, col, error) {
+            var detail = error ? error.stack : '';
+            window.tvLog('JS错误: ' + msg + ' (' + line + ':' + col + ')', 'error');
+            return false;
+        };
+
+        // TV Debugging Helper
+        window.tvLog = function(msg, type) {
+            type = type || 'info';
+            console.log('[TV-' + type + '] ' + msg);
+            var debugPanel = document.getElementById('tv-debug-panel');
+            if (debugPanel) {
+                var entry = document.createElement('div');
+                entry.style.borderBottom = '1px solid #444';
+                entry.style.padding = '4px 0';
+                entry.style.wordBreak = 'break-all';
+                entry.innerHTML = '<span style="color:#aaa;font-size:9px;">[' + new Date().toLocaleTimeString() + ']</span> <span style="color:' + (type === 'error' ? '#ff6666' : (type === 'warn' ? '#ffcc00' : '#66ff66')) + '">' + msg + '</span>';
+                debugPanel.insertBefore(entry, debugPanel.firstChild);
+            }
+        };
+
+        // 网络诊断
+        window.runNetworkDiagnostics = function() {
+            window.tvLog('开始网络诊断...');
+            window.tvLog('UA: ' + navigator.userAgent);
+            
+            var targets = [
+                { name: 'MQTT-Broker', url: 'http://broker.emqx.io:8083' }, // 使用 http 测试连通性
+                { name: 'EasyShow-API', url: 'https://easyshow.beundredig.eu.org/api/screen/active-room' }
+            ];
+
+            targets.forEach(function(t) {
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', t.url, true);
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status > 0) window.tvLog('✅ ' + t.name + ' 连通成功');
+                        else window.tvLog('❌ ' + t.name + ' 连通失败 (Status 0)', 'error');
+                    }
+                };
+                xhr.send();
+            });
+        };
     </script>
     <style>
+        #tv-debug-panel {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            width: 300px;
+            max-height: 200px;
+            background: rgba(0,0,0,0.8);
+            color: #fff;
+            font-size: 10px;
+            font-family: monospace;
+            padding: 5px;
+            border-radius: 5px;
+            z-index: 999999;
+            overflow-y: auto;
+            pointer-events: none;
+            display: none; /* 默认隐藏，按 F8 显示 */
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -60,7 +138,7 @@
             position: fixed;
             top: 40px;
             right: 40px;
-            z-index: 1000;
+            z-index: 100;
             display: flex;
             gap: 10px;
             align-items: center;
@@ -211,23 +289,6 @@
             justify-content: center;
             background: #000;
             color: #fff;
-        }
-
-        .screen-idle-badge {
-            position: absolute;
-            top: 30px;
-            right: 30px;
-            background: rgba(40, 40, 40, 0.7);
-            color: #aaa;
-            padding: 6px 16px;
-            border-radius: 20px;
-            font-size: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            z-index: 300;
-            display: none;
-            pointer-events: none;
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
         }
 
         #agentScreenLayer .screen-text {
@@ -784,8 +845,11 @@
 </head>
 
 <body>
-    <!-- 观众昵称输入弹窗 (默认隐藏，电视端自动登录) -->
-    <div id="nickname-modal" class="hidden">
+    <!-- 电视端调试面板 -->
+    <div id="tv-debug-panel"></div>
+
+    <!-- 观众昵称输入弹窗 -->
+    <div id="nickname-modal">
         <div class="nickname-box">
             <div class="nickname-title">👋 欢迎加入会议</div>
             <div class="nickname-sub">输入您的昵称，或直接跳过由系统分配编号</div>
@@ -850,13 +914,12 @@
             <canvas id="pdfCanvas" style="max-width: 100%; max-height: 100%; display: none;"></canvas>
             <!-- 涂鸦层 -->
             <canvas id="drawCanvas"
-                style="position:absolute; top:0; left:0; pointer-events:none; display:none; z-index:2147483645;"></canvas>
+                style="position:absolute; top:0; left:0; pointer-events:none; display:none; z-index:10;"></canvas>
 
             <img id="imageDisplay" style="max-width: 100%; max-height: 100%; object-fit: contain; display: none;" />
             <video id="videoDisplay" style="max-width: 100%; max-height: 100%; object-fit: contain; display: none;"
                 controls autoplay></video>
             <div id="agentScreenLayer"></div>
-            <div id="screenIdleBadge" class="screen-idle-badge">系统闲置中</div>
 
             <div id="placeholder">
                 <div class="pulse-ring-outer"></div>
@@ -936,36 +999,39 @@
         </div>
 
         <script>
+            window.BASE_URL = 'https://easyshow.beundredig.eu.org'; // 强制绝对路径前缀
             window.BEMFA_KEY = '3eb42d69d8b226abe22024d648975f8a';
-            window.MQTT_URL = 'wss://broker.emqx.io:8084/mqtt';
+            window.MQTT_URL = 'ws://broker.emqx.io:8083/mqtt';
             window.CONTROL_TOPIC = window.BEMFA_KEY + '/PPT001';
             window.STATUS_TOPIC = window.BEMFA_KEY + '/PPT002';
-            let BEMFA_KEY = window.BEMFA_KEY;
-            let MQTT_URL = window.MQTT_URL;
-            let CONTROL_TOPIC = window.CONTROL_TOPIC;
-            let STATUS_TOPIC = window.STATUS_TOPIC;
+            
+            // 使用简写引用
+            var BEMFA_KEY = window.BEMFA_KEY;
+            var MQTT_URL = window.MQTT_URL;
+            var CONTROL_TOPIC = window.CONTROL_TOPIC;
+            var STATUS_TOPIC = window.STATUS_TOPIC;
 
-            // 每个标签页独立 Session ID（避免同浏览器多标签共用身份）
+            // 每个标签页独立 Session ID
             if (!sessionStorage.getItem('sync_viewer_id')) {
                 sessionStorage.setItem('sync_viewer_id', 'remote_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5));
             }
-            let SESSION_ID = sessionStorage.getItem('sync_viewer_id');
+            var SESSION_ID = sessionStorage.getItem('sync_viewer_id');
 
-            let mqttClient = null;
-            let isConnected = false;
-            let currentPage = 0;
-            let totalPages = 0;
-            let pdfDoc = null;
-            let currentFilePath = null;
-            let viewerControlEnabled = false;
-            let pendingVideoUrl = null;
-            let lastRemoteFlipAt = 0;
-            let screenStatePollTimer = null;
-            let lastScreenStateTs = 0;
-            let lastRenderedScreenState = null;
-            let manualDisplayPriority = false;
-            let activeRoomReportTimer = null;
-            let screenSelfHealTimer = null;
+            var mqttClient = null;
+            var isConnected = false;
+            var currentPage = 0;
+            var totalPages = 0;
+            var pdfDoc = null;
+            var currentFilePath = null;
+            var viewerControlEnabled = false;
+            var pendingVideoUrl = null;
+            var lastRemoteFlipAt = 0;
+            var screenStatePollTimer = null;
+            var lastScreenStateTs = 0;
+            var lastRenderedScreenState = null;
+            var manualDisplayPriority = false;
+            var activeRoomReportTimer = null;
+            var screenSelfHealTimer = null;
 
 
             // --- UI 基础功能 (优先定义) ---
@@ -1032,76 +1098,80 @@
                 }
             }
 
-            function renderAgentScreenState(state, isIdle) {
-                const layer = document.getElementById('agentScreenLayer');
-                const idleBadge = document.getElementById('screenIdleBadge');
+            function fixUrl(url) {
+                if (!url) return '';
+                if (url.indexOf('http') === 0) return url;
+                if (url.indexOf('//') === 0) return 'https:' + url;
+                if (url.indexOf('/') === 0) return window.BASE_URL + url;
+                return url;
+            }
+
+            function renderAgentScreenState(state) {
+                var layer = document.getElementById('agentScreenLayer');
                 if (!layer) return;
-
-                if (idleBadge) {
-                    idleBadge.style.display = isIdle ? 'block' : 'none';
-                }
-
+                
                 if (manualDisplayPriority) {
                     layer.style.display = 'none';
-                    if (idleBadge) idleBadge.style.display = 'none';
                     lastRenderedScreenState = null;
                     return;
                 }
-                if (!state || !state.type) {
+                if (!state) {
                     hideAgentScreenLayer();
                     lastRenderedScreenState = null;
                     return;
                 }
 
-                const fit = state.fit === 'cover' ? 'cover' : 'contain';
-                let html = '';
+                // 自动探测类型
+                var type = state.type;
+                var content = state.url || state.content || '';
+                if (!type && content) {
+                    if (content.indexOf('<svg') === 0 || (content.indexOf('http') >= 0 && content.toLowerCase().indexOf('.svg') >= 0)) type = 'svg';
+                    else if (content.toLowerCase().match(/\.(mp4|webm|ogg|mov)$/)) type = 'video';
+                    else if (content.toLowerCase().match(/\.(mp3|wav|aac|m4a)$/)) type = 'audio';
+                    else if (content.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp|bmp)$/)) type = 'image';
+                    else if (content.indexOf('http') >= 0 || content.indexOf('/api/') === 0) type = 'iframe';
+                    else type = 'text';
+                }
 
-                // 辅助函数：转换视频链接为播放器专用链接
-                const formatMediaUrl = (url) => {
-                    if (!url) return '';
-                    // Bilibili BV 转换
-                    const bvMatch = url.match(/video\/(BV[a-zA-Z0-9]+)/i);
-                    if (bvMatch) return `https://player.bilibili.com/player.html?bvid=${bvMatch[1]}&autoplay=1&muted=0&page=1&high_quality=1&as_wide=1`;
-                    // Bilibili av 转换
-                    const avMatch = url.match(/video\/(av[0-9]+)/i);
-                    if (avMatch) return `https://player.bilibili.com/player.html?aid=${avMatch[1].replace('av', '')}&autoplay=1&muted=0&page=1&high_quality=1&as_wide=1`;
-                    return url;
-                };
+                window.tvLog('Agent推送 [' + type + ']: ' + String(content).substring(0, 50));
 
-                if (state.type === 'text') {
-                    const text = state.text || state.content || '';
-                    html = `<div class="screen-text">${String(text).replace(/[&<>]/g, s => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[s]))}</div>`;
-                } else if (state.type === 'image') {
-                    const src = state.url || state.content || '';
-                    html = `<img class="screen-media" style="object-fit:${fit};" src="${src}" alt="">`;
-                } else if (state.type === 'video') {
-                    const src = formatMediaUrl(state.url || state.content || '');
-                    // 如果转换后是 bilibili 播放器，改用 iframe
-                    if (src.includes('player.bilibili.com')) {
-                        html = `<iframe class="screen-frame" src="${src}" style="width:100%;height:100%;border:none;background:#000;" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
+                var fit = state.fit === 'cover' ? 'cover' : 'contain';
+                var html = '';
+                
+                if (type === 'text') {
+                    html = '<div class="screen-text">' + String(content).replace(/[&<>]/g, function(s) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[s]; }) + '</div>';
+                } else if (type === 'image') {
+                    var src = fixUrl(content);
+                    html = '<img class="screen-media" style="object-fit:' + fit + ';" src="' + src + '" onerror="window.tvLog(\'图片加载失败\', \'error\')">';
+                } else if (type === 'video') {
+                    var src = fixUrl(content);
+                    html = '<video class="screen-media" style="object-fit:' + fit + ';" src="' + src + '" controls autoplay playsinline onerror="window.tvLog(\'视频加载失败\', \'error\')"></video>';
+                } else if (type === 'audio') {
+                    var src = fixUrl(content);
+                    html = '<div class="screen-text" style="display:flex; flex-direction:column; align-items:center;"><div style="font-size:100px;">🎵</div><div style="font-size:24px; margin-top:20px;">正在播放音频...</div><audio src="' + src + '" controls autoplay style="margin-top:40px; width:600px;" onerror="window.tvLog(\'音频加载失败\', \'error\')"></audio></div>';
+                } else if (type === 'svg') {
+                    if (content.indexOf('http') >= 0 || content.indexOf('/') === 0) {
+                        html = '<img class="screen-media" style="object-fit:' + fit + ';" src="' + fixUrl(content) + '" alt="">';
                     } else {
-                        html = `<video class="screen-media" style="object-fit:${fit};" src="${src}" controls autoplay playsinline></video>`;
+                        var svgContent = String(content);
+                        if (!/preserveAspectRatio\s*=/.test(svgContent)) {
+                            var fitMode = (state.fit === 'cover') ? 'slice' : 'meet';
+                            svgContent = svgContent.replace(/<svg(\s|>)/i, '<svg preserveAspectRatio="xMidYMid ' + fitMode + '" $1');
+                        }
+                        if (!/width\s*=/.test(svgContent)) {
+                            svgContent = svgContent.replace(/<svg(\s|>)/i, '<svg width="100%" height="100%" $1');
+                        }
+                        html = '<div class="screen-frame" style="width:100%;height:100%;background:#000;overflow:hidden;display:flex;align-items:center;justify-content:center;">' + svgContent + '</div>';
                     }
-                } else if (state.type === 'svg') {
-                    let svgContent = String(state.content || '');
-                    if (!/preserveAspectRatio\s*=/.test(svgContent)) {
-                        const fitMode = (state.fit === 'cover') ? 'slice' : 'meet';
-                        svgContent = svgContent.replace(/<svg(\s|>)/i, `<svg preserveAspectRatio="xMidYMid ${fitMode}" $1`);
-                    }
-                    if (!/width\s*=/.test(svgContent)) {
-                        svgContent = svgContent.replace(/<svg(\s|>)/i, '<svg width="100%" height="100%" $1');
-                    }
-                    html = `<div class="screen-frame" style="width:100%;height:100%;background:#000;overflow:hidden;display:flex;align-items:center;justify-content:center;">${svgContent}</div>`;
-                } else if (state.type === 'html' || state.type === 'iframe') {
-                    if (state.url) {
-                        const src = formatMediaUrl(state.url);
-                        html = `<iframe class="screen-frame" src="${src}" style="width:100%;height:100%;border:none;background:#fff;" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
+                } else if (type === 'html' || type === 'iframe') {
+                    var src = fixUrl(state.url || content);
+                    if (src.indexOf('http') >= 0 || src.indexOf('/') === 0) {
+                        html = '<iframe class="screen-frame" src="' + fixUrl(src) + '" style="width:100%;height:100%;border:none;background:#fff;"></iframe>';
                     } else {
-                        html = `<div class="screen-frame" style="width:100%;height:100%;background:#000;">${state.content || ''}</div>`;
+                        html = '<div class="screen-frame" style="width:100%;height:100%;background:#000;">' + content + '</div>';
                     }
-                } else if (state.type === 'pdf' || state.type === 'doc') {
-                    const src = state.url || '';
-                    html = `<iframe class="screen-frame" src="${src}" allowfullscreen></iframe>`;
+                } else if (type === 'pdf' || type === 'doc') {
+                    html = '<iframe class="screen-frame" src="' + fixUrl(content) + '"></iframe>';
                 }
 
                 layer.innerHTML = html;
@@ -1112,7 +1182,7 @@
 
             function hashScreenState(state) {
                 if (!state) return '';
-                const raw = [
+                var raw = [
                     String(state.roomId || ''),
                     String(state.type || ''),
                     String(state.text || ''),
@@ -1120,23 +1190,23 @@
                     String(state.url || ''),
                     String(state.fit || '')
                 ].join('|');
-                let h = 2166136261;
-                for (let i = 0; i < raw.length; i++) {
+                var h = 2166136261;
+                for (var i = 0; i < raw.length; i++) {
                     h ^= raw.charCodeAt(i);
-                    h = Math.imul(h, 16777619);
+                    h = Math.imul ? Math.imul(h, 16777619) : (h * 16777619);
                 }
                 return (h >>> 0).toString(16);
             }
 
-            async function reportScreenRenderAck(state) {
+            function reportScreenRenderAck(state) {
                 try {
                     if (!state || !state.type) return;
-                    const roomId = window.STATUS_TOPIC || STATUS_TOPIC || (BEMFA_KEY + '/PPT002');
-                    await fetch('/api/screen/render-ack', {
+                    var roomId = window.STATUS_TOPIC || STATUS_TOPIC || (BEMFA_KEY + '/PPT002');
+                    fetch('https://easyshow.beundredig.eu.org/api/screen/render-ack', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            roomId,
+                            roomId: roomId,
                             hash: hashScreenState(state),
                             clientTs: Date.now(),
                             ok: true,
@@ -1146,39 +1216,39 @@
                 } catch (e) { }
             }
 
-            async function pollScreenState() {
+            function pollScreenState() {
                 try {
-                    const roomId = window.STATUS_TOPIC || STATUS_TOPIC || (BEMFA_KEY + '/PPT002');
-                    const res = await fetch(`/api/screen/state?roomId=${encodeURIComponent(roomId)}`);
-                    if (!res.ok) return;
-                    const data = await res.json();
-                    const state = data ? data.state : null;
-                    const ts = state && state.ts ? Number(state.ts) : 0;
-                    if (ts === lastScreenStateTs && state) return;
+                    var roomId = window.STATUS_TOPIC || STATUS_TOPIC || (BEMFA_KEY + '/PPT002');
+                    fetch('https://easyshow.beundredig.eu.org/api/screen/state?roomId=' + encodeURIComponent(roomId))
+                        .then(function(res) {
+                            if (!res.ok) return null;
+                            return res.json();
+                        })
+                        .then(function(data) {
+                            var state = data ? data.state : null;
+                            var ts = state && state.ts ? Number(state.ts) : 0;
+                            if (ts === lastScreenStateTs && state) return;
 
-                    // 最新时间戳覆盖优先策略
-                    // 如果存在有效的 Push，并且它的时间戳晚于最后一次 PPT 活跃操作的时间戳
-                    if (ts > 0 && ts !== lastScreenStateTs) {
-                        const pptTs = window._pptLastTs || 0;
-                        // 允许 2000ms 的时钟误差
-                        if (ts > pptTs - 2000) {
-                            console.log('🔄 [Priority] Push 时间戳更新，主动解除 PPT 锁定。Push:', ts, 'PPT:', pptTs);
-                            manualDisplayPriority = false;
-                        }
-                    }
+                            if (ts > 0 && ts !== lastScreenStateTs) {
+                                var pptTs = window._pptLastTs || 0;
+                                if (ts > pptTs - 2000) {
+                                    manualDisplayPriority = false;
+                                }
+                            }
 
-                    lastScreenStateTs = ts;
-                    renderAgentScreenState(state, data.isIdle);
+                            lastScreenStateTs = ts;
+                            renderAgentScreenState(state);
+                        }).catch(function(err) {});
                 } catch (e) { }
             }
 
-            async function reportActiveScreenRoom() {
+            function reportActiveScreenRoom() {
                 try {
-                    const roomId = window.STATUS_TOPIC || STATUS_TOPIC || (BEMFA_KEY + '/PPT002');
-                    await fetch('/api/screen/active-room', {
+                    var roomId = window.STATUS_TOPIC || STATUS_TOPIC || (BEMFA_KEY + '/PPT002');
+                    fetch('https://easyshow.beundredig.eu.org/api/screen/active-room', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ roomId, source: 'remote' })
+                        body: JSON.stringify({ roomId: roomId, source: 'remote' })
                     });
                 } catch (e) { }
             }
@@ -1189,7 +1259,7 @@
                     if (lastRenderedScreenState && lastRenderedScreenState.type) {
                         await reportScreenRenderAck(lastRenderedScreenState);
                     }
-                    await fetch(`/api/screen/self-heal?roomId=${encodeURIComponent(roomId)}`, { method: 'POST' });
+                    await fetch(`https://easyshow.beundredig.eu.org/api/screen/self-heal?roomId=${encodeURIComponent(roomId)}`, { method: 'POST' });
                 } catch (e) { }
             }
 
@@ -1243,14 +1313,23 @@
 
 
             // 页面加载后自动连接
-            window.addEventListener('load', () => {
-                const params = new URLSearchParams(window.location.search);
-                // 兼容 ?room=xxx 和 ?u=xxx 两种链接格式
-                const room = params.get('room') || params.get('u');
-                const suffix = buildTopicSuffix(room);
+            window.addEventListener('load', function() {
+                var search = window.location.search;
+                var room = '';
+                if (search) {
+                    var pairs = search.substring(1).split('&');
+                    for (var i = 0; i < pairs.length; i++) {
+                        var p = pairs[i].split('=');
+                        if (p[0] === 'room' || p[0] === 'u') {
+                            room = decodeURIComponent(p[1]);
+                            break;
+                        }
+                    }
+                }
+                var suffix = buildTopicSuffix(room);
                 CONTROL_TOPIC = BEMFA_KEY + '/PPT001' + suffix;
                 STATUS_TOPIC = BEMFA_KEY + '/PPT002' + suffix;
-                window.STATUS_TOPIC = STATUS_TOPIC; // Expose globally for screen share conflict check
+                window.STATUS_TOPIC = STATUS_TOPIC; 
                 startScreenStatePolling();
 
                 // Force stable Chinese labels to avoid any source-file encoding pollution.
@@ -1291,19 +1370,49 @@
                 setTimeout(tryCollapse, 300);
                 setTimeout(tryCollapse, 1000);
 
-                const displayName = room || 'admin';
-                document.getElementById('welcome-title').textContent = room ? `HELLO, ${displayName.toUpperCase()}` : 'SYSTEM ONLINE';
+                var displayName = room || 'admin';
+                var welcome = document.getElementById('welcome-title');
+                if (welcome) welcome.textContent = room ? ('HELLO, ' + displayName.toUpperCase()) : 'SYSTEM ONLINE';
 
-                // 电视端自动登录：跳过昵称输入环节
-                skipNickname();
+                // --- TV 优化：自动进入并连接 ---
+                if (window.isRemoteApp) {
+                    window.tvLog('📺 TV模式探测成功: 准备自动进入...');
+                    setTimeout(function() {
+                        window.tvLog('🚀 正在执行自动跳过登录...');
+                        skipNickname();
+                        runNetworkDiagnostics();
+                    }, 800); 
+                }
+
+                // 点击后门：连续点击左上角 5 次开启/关闭日志
+                let clickCount = 0;
+                let lastClickAt = 0;
+                document.addEventListener('click', function(e) {
+                    if (e.clientX < 100 && e.clientY < 100) {
+                        var now = Date.now();
+                        if (now - lastClickAt > 1000) clickCount = 0;
+                        clickCount++;
+                        lastClickAt = now;
+                        if (clickCount >= 5) {
+                            var panel = document.getElementById('tv-debug-panel');
+                            if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+                            window.tvLog('调试面板已通过手势切换');
+                            clickCount = 0;
+                        }
+                    }
+                });
             });
 
             // --- 全局安全防护 (显示端强制开启) ---
-            document.addEventListener('contextmenu', e => e.preventDefault());
-            document.addEventListener('keydown', e => {
-                // 禁止 F12, Ctrl+Shift+I/J/C, Ctrl+U, Ctrl+S
+            document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'F8') {
+                    var panel = document.getElementById('tv-debug-panel');
+                    if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+                }
+
                 if (e.key === 'F12' ||
-                    (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(e.key)) ||
+                    (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
                     (e.ctrlKey && e.key === 'u') ||
                     (e.ctrlKey && e.key === 's')
                 ) {
@@ -1312,45 +1421,47 @@
             });
 
             // --- 互动讨论逻辑 ---
-            const onlineUsers = new Map();
-            let isIdAssigned = false;
+            var onlineUsers = {}; // 改用普通对象提高兼容性
+            var isIdAssigned = false;
 
             // --- 昵称弹窗逻辑 ---
             function confirmNickname() {
-                const input = document.getElementById('nickname-input');
-                const name = input.value.trim();
+                var input = document.getElementById('nickname-input');
+                var name = input ? input.value.trim() : '';
                 if (name) {
                     window.sessionUsername = name;
                 } else {
                     skipNickname();
                     return;
                 }
-                document.getElementById('nickname-modal').classList.add('hidden');
+                var modal = document.getElementById('nickname-modal');
+                if (modal) modal.style.display = 'none';
                 connectMQTT();
             }
 
             function skipNickname() {
-                // 随机可爱动物名称 + 4位字母数字
-                const animals = ["百灵鸟", "小海豚", "胖达", "小白兔", "小柯基", "小花猫", "小仓鼠", "小企鹅", "长颈鹿", "小松鼠", "小刺猬", "小考拉", "小狐狸", "小斑马", "小浣熊"];
-                const animal = animals[Math.floor(Math.random() * animals.length)];
-                const rand = Math.random().toString(36).substr(2, 4).toUpperCase();
+                var animals = ["百灵鸟", "小海豚", "胖达", "小白兔", "小柯基", "小花猫", "小仓鼠", "小企鹅", "长颈鹿", "小松鼠", "小刺猬", "小考拉", "小狐狸", "小斑马", "小浣熊"];
+                var animal = animals[Math.floor(Math.random() * animals.length)];
+                var rand = Math.random().toString(36).substr(2, 4).toUpperCase();
                 window.sessionUsername = animal + '_' + rand;
-                document.getElementById('nickname-modal').classList.add('hidden');
+                var modal = document.getElementById('nickname-modal');
+                if (modal) modal.style.display = 'none'; // 强制隐藏，不依赖 classList
                 connectMQTT();
             }
 
             window.chatUnreadCount = 0;
             window.updateChatUnreadCount = function (count) {
                 window.chatUnreadCount = count;
-                const buttons = [
+                var buttons = [
                     document.getElementById('chat-fab'),
                     document.getElementById('btn-toggle-discussion'),
                     document.getElementById('agora-chat-btn')
                 ];
 
-                buttons.forEach(btn => {
-                    if (!btn) return;
-                    let badge = btn.querySelector('.chat-unread-badge');
+                for (var i = 0; i < buttons.length; i++) {
+                    var btn = buttons[i];
+                    if (!btn) continue;
+                    var badge = btn.querySelector('.chat-unread-badge');
                     if (count > 0) {
                         if (!badge) {
                             badge = document.createElement('div');
@@ -1365,24 +1476,24 @@
                     } else {
                         if (badge) badge.remove();
                     }
-                });
+                }
             };
 
-            let discussionHideTimer = null;
+            var discussionHideTimer = null;
             function initDiscussionSidebarEvents() {
-                const sidebar = document.getElementById('discussion-sidebar');
+                var sidebar = document.getElementById('discussion-sidebar');
                 if (!sidebar) return;
-                sidebar.addEventListener('mouseleave', () => {
-                    discussionHideTimer = setTimeout(() => {
-                        if (sidebar.classList.contains('active')) {
-                            sidebar.classList.remove('active');
-                            const icon = document.getElementById('toggle-icon');
+                sidebar.addEventListener('mouseleave', function() {
+                    discussionHideTimer = setTimeout(function() {
+                        if (sidebar.className.indexOf('active') >= 0) {
+                            sidebar.className = sidebar.className.replace('active', '').trim();
+                            var icon = document.getElementById('toggle-icon');
                             if (icon) icon.innerText = '<';
                             if (window.updateChatUnreadCount) window.updateChatUnreadCount(0);
                         }
                     }, 500);
                 });
-                sidebar.addEventListener('mouseenter', () => {
+                sidebar.addEventListener('mouseenter', function() {
                     if (discussionHideTimer) {
                         clearTimeout(discussionHideTimer);
                         discussionHideTimer = null;
@@ -1392,22 +1503,26 @@
             document.addEventListener('DOMContentLoaded', initDiscussionSidebarEvents);
 
             function toggleDiscussion() {
-                const sidebar = document.getElementById('discussion-sidebar');
-                sidebar.classList.toggle('active');
-                const icon = document.getElementById('toggle-icon');
-                if (icon) icon.innerText = sidebar.classList.contains('active') ? '>' : '<';
-                if (sidebar.classList.contains('active')) {
+                var sidebar = document.getElementById('discussion-sidebar');
+                if (sidebar.className.indexOf('active') >= 0) {
+                    sidebar.className = sidebar.className.replace('active', '').trim();
+                } else {
+                    sidebar.className += ' active';
+                }
+                var icon = document.getElementById('toggle-icon');
+                if (icon) icon.innerText = (sidebar.className.indexOf('active') >= 0) ? '>' : '<';
+                if (sidebar.className.indexOf('active') >= 0) {
                     if (window.updateChatUnreadCount) window.updateChatUnreadCount(0);
                 }
             }
             window.toggleDiscussion = toggleDiscussion;
 
             function sendChatMessage() {
-                const input = document.getElementById('discussion-input');
-                const text = input.value.trim();
+                var input = document.getElementById('discussion-input');
+                var text = input ? input.value.trim() : '';
                 if (!text) return;
 
-                const chatMsg = {
+                var chatMsg = {
                     roomId: STATUS_TOPIC,
                     action: 'chat',
                     sender: window.sessionUsername || '观众',
@@ -1423,51 +1538,54 @@
                 addMessageToUI(chatMsg, true);
             }
 
-            async function handleDiscussionFileUpload(input) {
-                const file = input.files[0];
+            function handleDiscussionFileUpload(input) {
+                var file = input.files[0];
                 if (!file) return;
-                input.value = ''; // reset so same file can be re-uploaded
+                input.value = ''; 
 
-                addMessageToUI({ text: `正在上传文件: ${file.name}...`, sender: '系统', action: 'chat', timestamp: Date.now() }, false);
+                addMessageToUI({ text: '正在上传文件: ' + file.name + '...', sender: '系统', action: 'chat', timestamp: Date.now() }, false);
 
-                try {
-                    const arrayBuffer = await file.arrayBuffer();
-                    // Use the auth-free /api/chat/upload endpoint (handles WebDAV internally)
-                    const resp = await fetch(`/api/chat/upload?filename=${encodeURIComponent(file.name)}`, {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    var arrayBuffer = e.target.result;
+                    fetch('https://easyshow.beundredig.eu.org/api/chat/upload?filename=' + encodeURIComponent(file.name), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/octet-stream' },
                         body: arrayBuffer
-                    });
-                    const result = await resp.json();
-                    if (result.success && result.url) {
-                        const fileUrl = result.url;
+                    }).then(function(res) {
+                        return res.json();
+                    }).then(function(result) {
+                        if (result.success && result.url) {
+                            var imgExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
+                            var ext = file.name.split('.').pop().toLowerCase();
+                            var isImage = false;
+                            for (var i = 0; i < imgExts.length; i++) {
+                                if (imgExts[i] === ext) { isImage = true; break; }
+                            }
 
-                        const imgExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
-                        const ext = file.name.split('.').pop().toLowerCase();
-                        const isImage = imgExts.includes(ext);
-
-                        const fileMsg = {
-                            roomId: STATUS_TOPIC,
-                            action: isImage ? 'chat_image' : 'file_link',
-                            sender: window.sessionUsername || '观众',
-                            sessionId: SESSION_ID,
-                            fileName: file.name,
-                            fileSize: (file.size / 1024).toFixed(1) + ' KB',
-                            url: fileUrl,
-                            imageUrl: isImage ? fileUrl : undefined,
-                            timestamp: Date.now()
-                        };
-                        if (window.mqttClient) {
-                            window.mqttClient.publish(STATUS_TOPIC, JSON.stringify(fileMsg));
+                            var fileMsg = {
+                                roomId: STATUS_TOPIC,
+                                action: isImage ? 'chat_image' : 'file_link',
+                                sender: window.sessionUsername || '观众',
+                                sessionId: SESSION_ID,
+                                fileName: file.name,
+                                fileSize: (file.size / 1024).toFixed(1) + ' KB',
+                                url: result.url,
+                                imageUrl: isImage ? result.url : undefined,
+                                timestamp: Date.now()
+                            };
+                            if (window.mqttClient) {
+                                window.mqttClient.publish(STATUS_TOPIC, JSON.stringify(fileMsg));
+                            }
+                            addMessageToUI(fileMsg, true);
+                        } else {
+                            addMessageToUI({ text: '文件上传失败', sender: '系统', action: 'chat', timestamp: Date.now() }, false);
                         }
-                        addMessageToUI(fileMsg, true);
-                    } else {
-                        addMessageToUI({ text: `文件上传失败 (${result.error || resp.status})`, sender: '系统', action: 'chat', timestamp: Date.now() }, false);
-                    }
-                } catch (e) {
-                    console.error('文件上传失败:', e);
-                    addMessageToUI({ text: '文件分享失败', sender: '系统', action: 'chat', timestamp: Date.now() }, false);
-                }
+                    }).catch(function(err) {
+                        addMessageToUI({ text: '上传异常', sender: '系统', action: 'chat', timestamp: Date.now() }, false);
+                    });
+                };
+                reader.readAsArrayBuffer(file);
             }
 
             function stringToColor(str) {
@@ -1494,151 +1612,136 @@
 
             function closePresentation() {
                 console.log('🎬 演示已结束，返回欢迎界面');
-                const canvas = document.getElementById('pdfCanvas');
+                var canvas = document.getElementById('pdfCanvas');
                 if (canvas) canvas.style.display = 'none';
-                const drawCanvas = document.getElementById('drawCanvas');
+                var drawCanvas = document.getElementById('drawCanvas');
                 if (drawCanvas) drawCanvas.style.display = 'none';
-                const imgDisplay = document.getElementById('imageDisplay');
+                var imgDisplay = document.getElementById('imageDisplay');
                 if (imgDisplay) { imgDisplay.style.display = 'none'; imgDisplay.src = ''; }
-                const videoDisplay = document.getElementById('videoDisplay');
+                var videoDisplay = document.getElementById('videoDisplay');
                 if (videoDisplay) {
                     try { videoDisplay.pause(); } catch (e) { }
                     videoDisplay.style.display = 'none';
                     videoDisplay.src = '';
                 }
-                const videoIframe = document.getElementById('videoIframe');
+                var videoIframe = document.getElementById('videoIframe');
                 if (videoIframe) {
                     videoIframe.style.display = 'none';
                     videoIframe.src = '';
                 }
-                const officeIframe = document.getElementById('officeIframe');
+                var officeIframe = document.getElementById('officeIframe');
                 if (officeIframe) {
                     officeIframe.style.display = 'none';
                     officeIframe.src = '';
                 }
-                const videoPrompt = document.getElementById('video-prompt');
+                var videoPrompt = document.getElementById('video-prompt');
                 if (videoPrompt) videoPrompt.style.display = 'none';
-                const placeholder = document.getElementById('placeholder');
+                var placeholder = document.getElementById('placeholder');
                 if (placeholder) placeholder.style.display = 'flex';
-                const infoScreen = document.getElementById('info-screen');
+                var infoScreen = document.getElementById('info-screen');
                 if (infoScreen) infoScreen.style.display = 'none';
-                const pageInfo = document.getElementById('pageInfo');
+                var pageInfo = document.getElementById('pageInfo');
                 if (pageInfo) pageInfo.style.display = 'none';
 
                 currentFilePath = null;
                 pdfDoc = null;
                 currentPage = 0;
                 totalPages = 0;
-                _mediaCleared = false; // 重置，下次演示时重新清理媒体
+                _mediaCleared = false; 
                 updatePageInfo();
                 clearRemoteDrawing();
-                // 演示结束，恢复 Agora 控制面板到默认位置
+                
                 if (typeof window.agoraSetCtrlPanelBottom === 'function') {
                     window.agoraSetCtrlPanelBottom(window._agoraCtrlBaseBottom || 90);
                 } else {
-                    const p = document.getElementById('agora-global-ctrl');
+                    var p = document.getElementById('agora-global-ctrl');
                     if (p) p.style.bottom = '90px';
                 }
             }
 
             function renderUserList() {
-                const list = document.getElementById('discussion-user-list');
+                var list = document.getElementById('discussion-user-list');
                 if (!list || list.style.display === 'none') return;
 
-                let html = '';
-                const seenNames = new Set();
+                var html = '';
+                var seenNames = new Set();
 
                 // 1. 演示者 (Master)
-                const master = Array.from(onlineUsers.values()).find(u => u.role === 'master');
-                const masterName = master ? master.name : (window.isPresenterOnline ? '演示者' : null);
+                var master = null;
+                onlineUsers.forEach(function(u) { if(u.role === 'master') master = u; });
+                var masterName = master ? master.name : (window.isPresenterOnline ? '演示者' : null);
 
                 if (masterName) {
                     seenNames.add(masterName);
-                    html += `
-                        <div class="user-item">
-                            <div class="user-avatar" style="background:${stringToColor(masterName)}">${masterName.charAt(0)}</div>
-                            <div class="user-name">${masterName} <span style="font-size:10px; color:#c0dfff;">(主持人)</span></div>
-                            <div class="user-status-dot"></div>
-                        </div>
-                    `;
+                    html += '<div class="user-item">' +
+                            '<div class="user-avatar" style="background:' + stringToColor(masterName) + '">' + masterName.charAt(0) + '</div>' +
+                            '<div class="user-name">' + masterName + ' <span style="font-size:10px; color:#c0dfff;">(主持人)</span></div>' +
+                            '<div class="user-status-dot"></div></div>';
                 }
 
                 // 2. 本人 (观众端加上自己)
-                const myName = window.sessionUsername || '观众';
+                var myName = window.sessionUsername || '观众';
                 if (!seenNames.has(myName)) {
                     seenNames.add(myName);
-                    html += `
-                        <div class="user-item">
-                            <div class="user-avatar" style="background:${stringToColor(myName)}">${myName.charAt(0)}</div>
-                            <div class="user-name">${myName} <span style="font-size:10px; color:#4facfe;">(本人)</span></div>
-                            <div class="user-status-dot"></div>
-                        </div>
-                    `;
+                    html += '<div class="user-item">' +
+                            '<div class="user-avatar" style="background:' + stringToColor(myName) + '">' + myName.charAt(0) + '</div>' +
+                            '<div class="user-name">' + myName + ' <span style="font-size:10px; color:#4facfe;">(本人)</span></div>' +
+                            '<div class="user-status-dot"></div></div>';
                 }
 
                 // 3. 其他在线用户 (过滤掉已显示的演示者和本人)
-                onlineUsers.forEach((user, sid) => {
+                onlineUsers.forEach(function(user, sid) {
                     if (user.role === 'master' || seenNames.has(user.name)) return;
                     seenNames.add(user.name);
-                    html += `
-                        <div class="user-item">
-                            <div class="user-avatar" style="background:${stringToColor(user.name)}">${user.name.charAt(0)}</div>
-                            <div class="user-name">${user.name}</div>
-                            <div class="user-status-dot"></div>
-                        </div>
-                    `;
+                    html += '<div class="user-item">' +
+                            '<div class="user-avatar" style="background:' + stringToColor(user.name) + '">' + user.name.charAt(0) + '</div>' +
+                            '<div class="user-name">' + user.name + '</div>' +
+                            '<div class="user-status-dot"></div></div>';
                 });
 
                 list.innerHTML = html;
             }
 
             function addMessageToUI(msg, isMe) {
-                const list = document.getElementById('message-list');
+                var list = document.getElementById('message-list');
                 if (!list) return;
 
-                const sidebar = document.getElementById('discussion-sidebar');
+                var sidebar = document.getElementById('discussion-sidebar');
                 if (!isMe && sidebar && !sidebar.classList.contains('active')) {
                     if (window.updateChatUnreadCount) {
                         window.updateChatUnreadCount((window.chatUnreadCount || 0) + 1);
                     }
                 }
 
-                const wrapper = document.createElement('div');
-                wrapper.className = `message-with-avatar ${isMe ? 'me' : 'others'}`;
+                var wrapper = document.createElement('div');
+                wrapper.className = 'message-with-avatar ' + (isMe ? 'me' : 'others');
 
-                const bgColor = stringToColor(msg.sender || '观众');
-                const avatarChar = (msg.sender || '观').charAt(0);
+                var bgColor = stringToColor(msg.sender || '观众');
+                var avatarChar = (msg.sender || '观').charAt(0);
 
-                // Format timestamp
-                const tsMs = msg.timestamp || Date.now();
-                const d = new Date(tsMs);
-                const pad = n => String(n).padStart(2, '0');
-                const timeStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+                var tsMs = msg.timestamp || Date.now();
+                var d = new Date(tsMs);
+                var pad = function(n) { return String(n).length < 2 ? '0' + n : n; };
+                var timeStr = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
 
-                let innerHTML = `
-                    <div class="user-avatar" style="background:${bgColor}">${avatarChar}</div>
-                    <div class="message-bubble">
-                        <div style="font-size:11px; opacity:0.6; margin-bottom:4px;">${msg.sender || '观众'}</div>
-                `;
+                var innerHTML = '<div class="user-avatar" style="background:' + bgColor + '">' + avatarChar + '</div>' +
+                                '<div class="message-bubble">' +
+                                '<div style="font-size:11px; opacity:0.6; margin-bottom:4px;">' + (msg.sender || '观众') + '</div>';
 
                 if (msg.action === 'chat_image' && (msg.imageUrl || msg.url)) {
-                    innerHTML += `<img src="${msg.imageUrl || msg.url}" style="max-width:180px; max-height:180px; border-radius:8px; cursor:pointer; margin-top:4px;" onclick="window.open(this.src)" />`;
+                    innerHTML += '<img src="' + (msg.imageUrl || msg.url) + '" style="max-width:180px; max-height:180px; border-radius:8px; cursor:pointer; margin-top:4px;" onclick="window.open(this.src)" />';
                 } else if (msg.action === 'file_link') {
-                    innerHTML += `
-                        <a href="${msg.url}" target="_blank" class="file-card" download>
-                            <span class="file-card-icon">📄</span>
-                            <div class="file-card-info">
-                                <span class="file-card-name">${msg.fileName}</span>
-                                <span class="file-card-size">${msg.fileSize}</span>
-                            </div>
-                        </a>
-                    `;
+                    innerHTML += '<a href="' + msg.url + '" target="_blank" class="file-card" download>' +
+                                 '<span class="file-card-icon">📄</span>' +
+                                 '<div class="file-card-info">' +
+                                 '<span class="file-card-name">' + msg.fileName + '</span>' +
+                                 '<span class="file-card-size">' + msg.fileSize + '</span>' +
+                                 '</div></a>';
                 } else {
-                    innerHTML += `<div>${msg.text}</div>`;
+                    innerHTML += '<div>' + msg.text + '</div>';
                 }
 
-                innerHTML += `<div style="font-size:10px; opacity:0.4; margin-top:5px; text-align:right;">${timeStr}</div>`;
-                innerHTML += `</div>`;
+                innerHTML += '<div style="font-size:10px; opacity:0.4; margin-top:5px; text-align:right;">' + timeStr + '</div></div>';
                 wrapper.innerHTML = innerHTML;
                 list.appendChild(wrapper);
                 list.scrollTop = list.scrollHeight;
@@ -1691,67 +1794,80 @@
             setTimeout(startMqttPresenceHeartbeat, 2000);
 
             function connectMQTT() {
+                if (typeof mqtt === 'undefined') {
+                    window.tvLog('❌ 致命错误: MQTT 库加载失败 (请检查网络或 HTTPS 证书)', 'error');
+                    console.error('MQTT library not loaded');
+                    return;
+                }
+
                 if (mqttClient) {
-                    mqttClient.end();
+                    try { mqttClient.end(); } catch(e) {}
                 }
 
                 updateStatus('连接中...', false);
+                window.tvLog('🔌 尝试连接: ' + MQTT_URL);
 
                 try {
-                    // 只要具备随机 SESSION_ID 充当了身份，在 EMQX 上多端独立
-                    const urlParams = new URLSearchParams(window.location.search);
-                    let sessionUsername = window.sessionUsername || urlParams.get('u') || urlParams.get('room');
+                    var search = window.location.search;
+                    var sessionUsername = window.sessionUsername;
+                    if (!sessionUsername && search) {
+                        var pairs = search.substring(1).split('&');
+                        for (var i = 0; i < pairs.length; i++) {
+                            var p = pairs[i].split('=');
+                            if (p[0] === 'u' || p[0] === 'room') {
+                                sessionUsername = decodeURIComponent(p[1]);
+                                break;
+                            }
+                        }
+                    }
                     if (!sessionUsername) {
-                        const animals = ["百灵鸟", "小海豚", "胖达", "小白兔", "小柯基"];
-                        const animal = animals[Math.floor(Math.random() * animals.length)];
-                        const rand = Math.random().toString(36).substr(2, 4).toUpperCase();
+                        var animals = ["百灵鸟", "小海豚", "胖达", "小白兔", "小柯基"];
+                        var animal = animals[Math.floor(Math.random() * animals.length)];
+                        var rand = Math.random().toString(36).substr(2, 4).toUpperCase();
                         sessionUsername = animal + '_' + rand;
                     }
                     window.sessionUsername = sessionUsername;
 
-
-
                     window.mqttClient = mqttClient = mqtt.connect(MQTT_URL, {
                         clientId: SESSION_ID,
                         clean: true,
-                        connectTimeout: 4000,
-                        reconnectPeriod: 3000,
-                        protocolVersion: 4
+                        connectTimeout: 5000,
+                        reconnectPeriod: 5000, 
+                        protocolId: 'MQIsdp', // 老旧设备尝试使用协议 ID
+                        protocolVersion: 3
                     });
 
-                    mqttClient.on('connect', () => {
+                    mqttClient.on('connect', function() {
+                        window.tvLog('✅ 服务器连接成功');
+                        isConnected = true;
                         updateStatus('已连接', true);
+                        updateStatusUI();
                         startScreenStatePolling();
-                        mqttClient.subscribe(STATUS_TOPIC, (err) => {
+                        
+                        mqttClient.subscribe(STATUS_TOPIC, function(err) {
                             if (!err) {
-                                isConnected = true;
                                 enableControls(viewerControlEnabled);
                                 requestStatus();
-
-                                // 首先请求分配一个唯一编号
                                 console.log('📢 正在请求席位编号...');
                                 mqttClient.publish(STATUS_TOPIC, JSON.stringify({
                                     action: 'request_id',
                                     sessionId: SESSION_ID
                                 }), { qos: 0 });
 
-                                // 如果 1.5 秒后没人分配（比如展示者不在线），则自行抢坑
-                                setTimeout(() => {
+                                setTimeout(function() {
                                     if (!isIdAssigned) {
-                                        console.log('⚠️ 未收到编号分配，开始自行计算编号...');
-                                        const usedIds = new Set();
-                                        onlineUsers.forEach(u => {
-                                            const m = u.name.match(/_(\d+)$/);
+                                        console.log('⚠️ 未收到编号分配，自行抢坑...');
+                                        var usedIds = new Set();
+                                        onlineUsers.forEach(function(u) {
+                                            var m = u.name.match(/_(\d+)$/);
                                             if (m) usedIds.add(parseInt(m[1]));
                                         });
-                                        let assigned = 2; // 自行抢坑从 02 开始
+                                        var assigned = 2;
                                         while (usedIds.has(assigned)) assigned++;
-                                        const assignedStr = assigned < 10 ? '0' + assigned : '' + assigned;
+                                        var assignedStr = assigned < 10 ? '0' + assigned : '' + assigned;
                                         completeIdAssignment(assignedStr);
                                     }
                                 }, 1500);
-                            } else {
-                                updateStatus('订阅失败', false);
                             }
                         });
                     });
@@ -1759,13 +1875,11 @@
                     function completeIdAssignment(idStr) {
                         if (isIdAssigned) return;
                         isIdAssigned = true;
-                        // 不再强制修改用户的昵称
                         console.log('✅ 席位确认:', window.sessionUsername);
                     }
 
-                    // --- 权限管理逻辑 ---
                     window.isPresenterOnline = false;
-                    window.isViewerSharingAllowed = true; // 默认允许，直到演示者下达禁令
+                    window.isViewerSharingAllowed = true;
                     window.isViewerMicAllowed = true;
                     window.isViewerVideoAllowed = true;
 
@@ -1773,35 +1887,28 @@
                         if (window.agoraModule && typeof window.agoraModule.setSharingPermission === 'function') {
                             window.agoraModule.setSharingPermission(window.isPresenterOnline, window.isViewerSharingAllowed);
                         }
-                        if (window.agoraModule && typeof window.agoraModule.setMediaPermission === 'function') {
-                            window.agoraModule.setMediaPermission(window.isViewerMicAllowed, window.isViewerVideoAllowed);
-                        }
                     }
-                    // 定期清理主控在线状态（心跳超时）
-                    setInterval(() => {
+
+                    setInterval(function() {
                         window.isPresenterOnline = false;
-                        // 检查在线列表中是否有 master
-                        for (let user of onlineUsers.values()) {
-                            if (user.role === 'master') {
-                                window.isPresenterOnline = true;
-                                break;
-                            }
-                        }
+                        onlineUsers.forEach(function(user) {
+                            if (user.role === 'master') window.isPresenterOnline = true;
+                        });
                         updateSharingPermission();
                     }, 5000);
 
 
 
-                    mqttClient.on('message', (topic, message) => {
+                    mqttClient.on('message', function(topic, message) {
                         if (topic === STATUS_TOPIC) {
                             try {
-                                const status = JSON.parse(message.toString());
+                                var status = JSON.parse(message.toString());
 
                                 // Chat actions
                                 if (status.action === 'chat' || status.action === 'file_link' || status.action === 'chat_image') {
                                     if (status.sessionId && status.sessionId !== SESSION_ID) {
-                                        const senderName = status.sender || '观众';
-                                        const existing = onlineUsers.get(status.sessionId) || {};
+                                        var senderName = status.sender || '观众';
+                                        var existing = onlineUsers.get(status.sessionId) || {};
                                         onlineUsers.set(status.sessionId, { name: senderName, role: existing.role || 'viewer', time: Date.now() });
                                         updateOnlineStatusUI();
                                     }
@@ -1844,11 +1951,10 @@
                                     if (window.agoraModule && typeof window.agoraModule.handleScreenShareLock === 'function') {
                                         window.agoraModule.handleScreenShareLock(status.uid);
                                     }
-                                    const stage = document.getElementById('agora-video-stage');
+                                    var stage = document.getElementById('agora-video-stage');
                                     if (stage) stage.style.display = 'flex';
 
                                     // 【互斥逻辑】正在演示PPT时开启了屏幕分享，自动关闭/隐藏PPT
-                                    if (typeof closePresentation === 'function') {
                                         // 停止并清理当前所有的显示（重置为无文档状态）
                                         closePresentation();
                                     }
@@ -1906,13 +2012,13 @@
                                 }
 
                                 // Handle URL change (new file or initial load)
-                                const statusUrl = status.u || status.pdfUrl;
-                                const statusPage = status.p !== undefined ? status.p : status.currentPage;
-                                const statusTotal = status.t_total !== undefined ? status.t_total : (status.totalPages !== undefined ? status.totalPages : status.t);
-                                const statusViewerControl = status.vc !== undefined ? !!status.vc : status.viewerControlEnabled;
-                                const statusViewerSharing = status.vs !== undefined ? !!status.vs : status.viewerSharingAllowed;
-                                const statusViewerMic = status.vm !== undefined ? !!status.vm : status.viewerMicAllowed;
-                                const statusViewerVideo = status.vv !== undefined ? !!status.vv : status.viewerVideoAllowed;
+                                var statusUrl = status.u || status.pdfUrl;
+                                var statusPage = status.p !== undefined ? status.p : status.currentPage;
+                                var statusTotal = status.t_total !== undefined ? status.t_total : (status.totalPages !== undefined ? status.totalPages : status.t);
+                                var statusViewerControl = status.vc !== undefined ? !!status.vc : status.viewerControlEnabled;
+                                var statusViewerSharing = status.vs !== undefined ? !!status.vs : status.viewerSharingAllowed;
+                                var statusViewerMic = status.vm !== undefined ? !!status.vm : status.viewerMicAllowed;
+                                var statusViewerVideo = status.vv !== undefined ? !!status.vv : status.viewerVideoAllowed;
 
                                 if (statusUrl && statusUrl !== currentFilePath) {
                                     // 仅在 PPT 时间戳更新时抢占焦点，防止覆盖正在展示的最新 Push
@@ -1943,7 +2049,7 @@
 
                                 if (statusViewerControl !== undefined) {
                                     viewerControlEnabled = !!statusViewerControl;
-                                    const ctrls = document.querySelector('.controls-container');
+                                    var ctrls = document.querySelector('.controls-container');
                                     if (ctrls) ctrls.style.display = viewerControlEnabled ? 'flex' : 'none';
                                     enableControls(isConnected && viewerControlEnabled);
                                 }
@@ -1962,7 +2068,7 @@
                                     updateSharingPermission();
                                 }
 
-                                const videoEl = document.getElementById('videoDisplay');
+                                var videoEl = document.getElementById('videoDisplay');
                                 if (videoEl && videoEl.style.display !== 'none') {
                                     handleVideoSync(videoEl, status);
                                 }
@@ -1975,7 +2081,7 @@
                                     document.getElementById('info-speaker').textContent = '主讲人: ' + (status.speaker || '未知');
                                     document.getElementById('info-date').textContent = '时间: ' + (status.date || '');
                                     document.getElementById('info-url').textContent = status.url;
-                                    const qrContainer = document.getElementById('info-qrcode');
+                                    var qrContainer = document.getElementById('info-qrcode');
                                     qrContainer.innerHTML = '';
                                     try { new QRCode(qrContainer, { text: status.url, width: 256, height: 256 }); } catch (e) { }
                                     document.getElementById('info-screen').style.display = 'flex';
@@ -1983,12 +2089,11 @@
                                     document.getElementById('imageDisplay').style.display = 'none';
                                     document.getElementById('videoDisplay').style.display = 'none';
                                     document.getElementById('video-prompt').style.display = 'none';
-                                    const ph = document.getElementById('placeholder');
+                                    var ph = document.getElementById('placeholder');
                                     if (ph) ph.style.display = 'none';
                                     return;
                                 }
 
-                                // 涂鸦数据处理
                                 if (status.action === 'draw_state_sync') { applyDrawStateSync(status); return; }
                                 if (status.action === 'draw' || status.action === 'clear' || status.action === 'draw_begin' || status.action === 'draw_chunk' || status.action === 'draw_end' || status.action === 'draw_clear') { handleIncomingDraw(status); return; }
                                 if (status.action === 'draw_resync_data') { applyDrawResyncData(status); return; }
@@ -2003,7 +2108,7 @@
                                 }
 
                                 if (status.action === 'enable_control') {
-                                    const ctrls = document.querySelector('.controls-container');
+                                    var ctrls = document.querySelector('.controls-container');
                                     if (ctrls) ctrls.style.display = status.enabled ? 'flex' : 'none';
                                     viewerControlEnabled = !!status.enabled;
                                     enableControls(isConnected && viewerControlEnabled);
@@ -2113,9 +2218,9 @@
             }
 
             function updatePageInfo() {
-                const pageInfo = document.getElementById('pageInfo');
+                var pageInfo = document.getElementById('pageInfo');
                 if (totalPages > 0) {
-                    pageInfo.textContent = `${currentPage} / ${totalPages}`;
+                    pageInfo.textContent = currentPage + ' / ' + totalPages;
                     pageInfo.style.display = 'block';
                 } else {
                     pageInfo.style.display = 'none';
@@ -2125,181 +2230,130 @@
             // 检测是否为图片或视频 URL
             // 检测是否为图片或视频 URL
             function isMediaUrl(url) {
-                const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
-                const videoExtensions = ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv'];
+                var imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
+                var videoExtensions = ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv'];
                 try {
-                    // 简单粗暴的字符串匹配，防止 URL 解析失败
-                    const lowerUrl = decodeURIComponent(url).toLowerCase();
-
-                    // 检查是否为流媒体网站的嵌入链接
-                    if (lowerUrl.includes('bilibili.com') || lowerUrl.includes('youtube.com')) {
-                        return { isImage: false, isVideo: true, isMedia: true };
+                    var lowerUrl = decodeURIComponent(url).toLowerCase();
+                    if (lowerUrl.indexOf('bilibili.com') >= 0 || lowerUrl.indexOf('youtube.com') >= 0) {
+                        return { isImage: false, isVideo: true, isMedia: true, isExternal: true };
                     }
-
-                    // 检查 extension 是否在 url 中出现 (通常在末尾或者 ? 前面)
-                    // 移除 query 参数
-                    const urlNoQuery = lowerUrl.split('?')[0];
-
-                    const isImage = imageExtensions.some(ext => urlNoQuery.endsWith('.' + ext));
-                    const isVideo = videoExtensions.some(ext => urlNoQuery.endsWith('.' + ext));
-
-                    // 保底：如果 split 失败，直接 match
-                    if (!isImage && !isVideo) {
-                        // 尝试在完整的 URL 中查找 .ext
-                        return {
-                            isImage: imageExtensions.some(ext => lowerUrl.includes('.' + ext)),
-                            isVideo: videoExtensions.some(ext => lowerUrl.includes('.' + ext)),
-                            isMedia: true
-                        };
-                    }
-
-                    return { isImage, isVideo, isMedia: isImage || isVideo };
+                    var urlNoQuery = lowerUrl.split('?')[0];
+                    var isImage = imageExtensions.some(function(ext) { return urlNoQuery.indexOf('.' + ext) >= 0; });
+                    var isVideo = videoExtensions.some(function(ext) { return urlNoQuery.indexOf('.' + ext) >= 0; });
+                    return { isImage: isImage, isVideo: isVideo, isMedia: isImage || isVideo };
                 } catch (e) {
-                    console.error('URL解析错误:', e);
                     return { isImage: false, isVideo: false, isMedia: false };
                 }
             }
 
             // 加载 PDF、图片或视频文件
-            async function loadPDF(pdfUrl) {
+            function loadPDF(pdfUrl) {
                 try {
+                    pdfUrl = fixUrl(pdfUrl); 
+                    window.tvLog('正在加载文件: ' + pdfUrl);
                     console.log('📄 加载文件:', pdfUrl);
 
-                    // 显示加载提示
-                    const placeholder = document.getElementById('placeholder');
-                    placeholder.innerHTML = '<div class="icon">⏳</div><div>加载中...</div>';
-                    placeholder.style.display = 'flex';
+                    var placeholder = document.getElementById('placeholder');
+                    if (placeholder) {
+                        placeholder.innerHTML = '<div class="icon">⏳</div><div>加载中...</div>';
+                        placeholder.style.display = 'flex';
+                    }
 
-                    // 隐藏之前的显示元素
                     document.getElementById('pdfCanvas').style.display = 'none';
                     document.getElementById('imageDisplay').style.display = 'none';
                     document.getElementById('videoDisplay').style.display = 'none';
 
-                    // 隐藏可能存在的 iframe
-                    const existingIframe = document.getElementById('officeIframe');
-                    if (existingIframe) {
-                        existingIframe.style.display = 'none';
-                    }
+                    var existingIframe = document.getElementById('officeIframe');
+                    if (existingIframe) existingIframe.style.display = 'none';
 
-                    // 隐藏可能存在的视频播放 iframe
-                    const videoIframe = document.getElementById('videoIframe');
+                    var videoIframe = document.getElementById('videoIframe');
                     if (videoIframe) {
                         videoIframe.style.display = 'none';
                         videoIframe.src = '';
                     }
-                    document.getElementById('video-prompt').style.display = 'none';
+                    var videoPrompt = document.getElementById('video-prompt');
+                    if (videoPrompt) videoPrompt.style.display = 'none';
 
-                    // 【互斥逻辑】如果正在呈现PPT，隐藏屏幕分享
-                    const stage = document.getElementById('agora-video-stage');
+                    var stage = document.getElementById('agora-video-stage');
                     if (stage) stage.style.display = 'none';
 
-                    // 检测是否为 KKFileView 预览页面（Excel 等）
-                    if (pdfUrl.includes('/onlinePreview')) {
-                        console.log('🖼️ 检测到 KKFileView 预览页面，使用 iframe 显示');
-
-                        // 创建或更新 iframe
-                        let iframe = document.getElementById('officeIframe');
+                    if (pdfUrl.indexOf('/onlinePreview') >= 0) {
+                        var iframe = document.getElementById('officeIframe');
                         if (!iframe) {
                             iframe = document.createElement('iframe');
                             iframe.id = 'officeIframe';
                             iframe.style.cssText = 'width:100%; height:100%; border:none; background:white; display:none;';
                             document.getElementById('previewScreen').appendChild(iframe);
                         }
-
-                        iframe.onload = () => {
+                        iframe.onload = function() {
                             console.log('✅ KKFileView 预览加载成功');
-                            placeholder.style.display = 'none';
+                            if (placeholder) placeholder.style.display = 'none';
                             iframe.style.display = 'block';
-
-                            // 设置页码信息
                             totalPages = 1;
                             currentPage = 1;
                             updatePageInfo();
                         };
-
-                        iframe.onerror = () => {
+                        iframe.onerror = function() {
                             console.error('❌ KKFileView 预览加载失败:', pdfUrl);
-                            placeholder.innerHTML = '<div class="icon">❌</div><div>预览加载失败</div>';
+                            if (placeholder) placeholder.innerHTML = '<div class="icon">❌</div><div>预览加载失败</div>';
                         };
-
                         iframe.src = pdfUrl;
                         pdfDoc = null;
                         return;
                     }
 
-                    // 检测文件类型
-                    const mediaType = isMediaUrl(pdfUrl);
+                    var mediaType = isMediaUrl(pdfUrl);
 
                     if (mediaType.isVideo) {
-                        console.log('🎬 检测到视频推送，尝试自动播放');
+                        console.log('🎬 检测到视频推送');
                         pendingVideoUrl = pdfUrl;
-
-                        // 显示文件名提示
                         try {
-                            const fname = decodeURIComponent(pdfUrl.split('/').pop().split('?')[0]);
-                            document.getElementById('video-filename').textContent = fname;
+                            var fname = decodeURIComponent(pdfUrl.split('/').pop().split('?')[0]);
+                            var fnameEl = document.getElementById('video-filename');
+                            if (fnameEl) fnameEl.textContent = fname;
                         } catch (e) { }
-
-                        document.getElementById('placeholder').style.display = 'none';
-                        document.getElementById('video-prompt').style.display = 'none';
-
-                        // 视频只有一页
+                        if (placeholder) placeholder.style.display = 'none';
+                        var vp = document.getElementById('video-prompt');
+                        if (vp) vp.style.display = 'none';
                         totalPages = 1;
                         currentPage = 1;
                         updatePageInfo();
-
                         pdfDoc = null;
-
-                        // 自动播放
                         setTimeout(playVideoInIframe, 100);
                     } else if (mediaType.isImage) {
-                        console.log('🖼️ 检测到图片文件，使用图片显示');
-                        const imgEl = document.getElementById('imageDisplay');
-
-                        imgEl.onload = () => {
+                        console.log('🖼️ 检测到图片文件');
+                        var imgEl = document.getElementById('imageDisplay');
+                        imgEl.onload = function() {
                             console.log('✅ 图片加载成功');
-                            placeholder.style.display = 'none';
+                            if (placeholder) placeholder.style.display = 'none';
                             imgEl.style.display = 'block';
-
-                            // 图片只有一页
                             totalPages = 1;
                             currentPage = 1;
                             updatePageInfo();
                         };
-
-                        imgEl.onerror = () => {
-                            console.warn('图片加载失败（可能演示已结束）:', pdfUrl);
-                            // 不再在 UI 上显示错误，演示结束时 closePresentation 会自动处理
+                        imgEl.onerror = function() {
+                            console.warn('图片加载失败:', pdfUrl);
                         };
-
                         imgEl.src = pdfUrl;
-                        pdfDoc = null; // 清除 PDF 文档对象
+                        pdfDoc = null;
                     } else {
-                        // PDF 文件处理
                         console.log('📄 检测到 PDF 文件');
-                        const loadingTask = pdfjsLib.getDocument(pdfUrl);
-                        pdfDoc = await loadingTask.promise;
-                        totalPages = pdfDoc.numPages;
-                        if (!currentPage || currentPage < 1) currentPage = 1;
-                        if (currentPage > totalPages) currentPage = totalPages;
-
-                        console.log('✅ PDF 加载成功，共', pdfDoc.numPages, '页');
-
-                        // 隐藏占位符，显示 Canvas
-                        placeholder.style.display = 'none';
-                        document.getElementById('pdfCanvas').style.display = 'block';
-                        updatePageInfo();
-
-                        // 渲染当前页
-                        if (currentPage > 0) {
-                            renderPage(currentPage);
-                        }
+                        pdfjsLib.getDocument(pdfUrl).promise.then(function(doc) {
+                            pdfDoc = doc;
+                            totalPages = pdfDoc.numPages;
+                            if (!currentPage || currentPage < 1) currentPage = 1;
+                            if (currentPage > totalPages) currentPage = totalPages;
+                            console.log('✅ PDF 加载成功，共', pdfDoc.numPages, '页');
+                            if (placeholder) placeholder.style.display = 'none';
+                            document.getElementById('pdfCanvas').style.display = 'block';
+                            updatePageInfo();
+                            if (currentPage > 0) renderPage(currentPage);
+                        }).catch(function(error) {
+                            console.error('❌ PDF加载失败:', error);
+                        });
                     }
                 } catch (error) {
                     console.error('❌ 文件加载失败:', error);
-                    const placeholder = document.getElementById('placeholder');
-                    placeholder.innerHTML = '<div class="icon">❌</div><div>加载失败: ' + error.message + '</div>';
-                    placeholder.style.display = 'flex';
                 }
             }
 
@@ -2317,81 +2371,82 @@
                     _viewerRenderRAF = null;
                 }
 
-                // 取消正在进行的渲染任务
+            function renderPage(pageNum) {
+                if (!pdfDoc || pageNum < 1 || pageNum > pdfDoc.numPages) return;
+
+                if (_viewerRenderRAF) {
+                    cancelAnimationFrame(_viewerRenderRAF);
+                    _viewerRenderRAF = null;
+                }
+
                 if (_viewerActiveRenderTask) {
                     try { _viewerActiveRenderTask.cancel(); } catch (e) { }
                     _viewerActiveRenderTask = null;
                 }
 
-                _viewerRenderRAF = requestAnimationFrame(() => {
+                _viewerRenderRAF = requestAnimationFrame(function() {
                     _viewerRenderRAF = null;
                     _doViewerRenderPage(pageNum);
                 });
             }
 
-            async function _doViewerRenderPage(pageNum) {
+            function _doViewerRenderPage(pageNum) {
                 if (!pdfDoc || pageNum < 1 || pageNum > pdfDoc.numPages) return;
 
-                // 首次渲染时清理其他媒体（只做一次，避免重复 DOM 操作）
                 if (!_mediaCleared) {
                     _mediaCleared = true;
-                    const imgDisplay = document.getElementById('imageDisplay');
+                    var imgDisplay = document.getElementById('imageDisplay');
                     if (imgDisplay) { imgDisplay.style.display = 'none'; imgDisplay.src = ''; }
-                    const videoDisplay = document.getElementById('videoDisplay');
+                    var videoDisplay = document.getElementById('videoDisplay');
                     if (videoDisplay) { videoDisplay.style.display = 'none'; }
-                    const videoPrompt = document.getElementById('video-prompt');
+                    var videoPrompt = document.getElementById('video-prompt');
                     if (videoPrompt) videoPrompt.style.display = 'none';
-                    const infoScreen = document.getElementById('info-screen');
+                    var infoScreen = document.getElementById('info-screen');
                     if (infoScreen) infoScreen.style.display = 'none';
-                    const officeIframe = document.getElementById('officeIframe');
+                    var officeIframe = document.getElementById('officeIframe');
                     if (officeIframe) officeIframe.style.display = 'none';
-                    const videoIframe = document.getElementById('videoIframe');
+                    var videoIframe = document.getElementById('videoIframe');
                     if (videoIframe) { videoIframe.style.display = 'none'; videoIframe.src = ''; }
-                    const placeholder = document.getElementById('placeholder');
+                    var placeholder = document.getElementById('placeholder');
                     if (placeholder) placeholder.style.display = 'none';
                 }
 
-                // Show canvas
-                const canvas = document.getElementById('pdfCanvas');
-                canvas.style.display = 'block';
+                var canvas = document.getElementById('pdfCanvas');
+                if (canvas) canvas.style.display = 'block';
 
-                try {
-                    const page = await pdfDoc.getPage(pageNum);
-                    const ctx = canvas.getContext('2d');
+                pdfDoc.getPage(pageNum).then(function(page) {
+                    var ctx = canvas.getContext('2d');
+                    var devicePixelRatio = window.devicePixelRatio || 1;
+                    var container = document.getElementById('previewScreen');
+                    var padding = document.fullscreenElement ? 0 : 40;
+                    var containerWidth = container.clientWidth - padding;
+                    var containerHeight = container.clientHeight - padding;
 
-                    const devicePixelRatio = window.devicePixelRatio || 1;
-                    const container = document.getElementById('previewScreen');
-                    const padding = document.fullscreenElement ? 0 : 40;
-                    const containerWidth = container.clientWidth - padding;
-                    const containerHeight = container.clientHeight - padding;
-
-                    const viewport = page.getViewport({ scale: 1 });
-                    const scaleX = containerWidth / viewport.width;
-                    const scaleY = containerHeight / viewport.height;
-                    const baseScale = Math.min(scaleX, scaleY);
-                    const scale = Math.min(baseScale * devicePixelRatio, 3);
-                    const scaledViewport = page.getViewport({ scale: scale });
+                    var viewport = page.getViewport({ scale: 1 });
+                    var scaleX = containerWidth / viewport.width;
+                    var scaleY = containerHeight / viewport.height;
+                    var baseScale = Math.min(scaleX, scaleY);
+                    var scale = Math.min(baseScale * devicePixelRatio, 3);
+                    var scaledViewport = page.getViewport({ scale: scale });
 
                     canvas.width = scaledViewport.width;
                     canvas.height = scaledViewport.height;
                     canvas.style.width = (scaledViewport.width / devicePixelRatio) + 'px';
                     canvas.style.height = (scaledViewport.height / devicePixelRatio) + 'px';
 
-                    const renderContext = {
+                    var renderContext = {
                         canvasContext: ctx,
                         viewport: scaledViewport
                     };
 
                     _viewerActiveRenderTask = page.render(renderContext);
-                    await _viewerActiveRenderTask.promise;
-                    _viewerActiveRenderTask = null;
-                    console.log('✓ 页面', pageNum, '渲染完成');
-                } catch (error) {
-                    _viewerActiveRenderTask = null;
-                    if (error.name !== 'RenderingCancelledException') {
-                        console.error('渲染失败:', error);
-                    }
-                }
+                    _viewerActiveRenderTask.promise.then(function() {
+                        _viewerActiveRenderTask = null;
+                        console.log('✓ 页面', pageNum, '渲染完成');
+                    }).catch(function(err) {
+                        _viewerActiveRenderTask = null;
+                    });
+                });
             }
             // (Old playVideoInIframe removed as it's dead code, a newer version exists below)
 
@@ -2453,45 +2508,40 @@
 
             // 复制会议链接
             function copyMeetingLink() {
-                const urlElement = document.getElementById('info-url');
-                const meetingUrl = urlElement.textContent;
+                var urlElement = document.getElementById('info-url');
+                var meetingUrl = urlElement ? urlElement.textContent : '';
 
                 if (!meetingUrl) {
                     alert('没有可复制的会议链接');
                     return;
                 }
 
-                // 复制到剪贴板
-                navigator.clipboard.writeText(meetingUrl).then(() => {
-                    // 找到按钮元素
-                    const button = event.target;
-                    const originalText = button.innerHTML;
-
-                    // 显示成功反馈
-                    button.innerHTML = '✅ 已复制';
-                    button.style.background = '#4caf50';
-
-                    // 2秒后恢复原样
-                    setTimeout(() => {
-                        button.innerHTML = originalText;
-                        button.style.background = '#1976d2';
-                    }, 2000);
-                }).catch(err => {
-                    console.error('复制失败:', err);
-                    alert('复制失败，请手动复制链接');
-                });
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(meetingUrl).then(function() {
+                        var button = event.target;
+                        var originalText = button.innerHTML;
+                        button.innerHTML = '✅ 已复制';
+                        button.style.background = '#4caf50';
+                        setTimeout(function() {
+                            button.innerHTML = originalText;
+                            button.style.background = '#1976d2';
+                        }, 2000);
+                    }).catch(function(err) {});
+                } else {
+                    alert('请手动复制链接: ' + meetingUrl);
+                }
             }
 
             // ==================== 涂鸦功能 ====================
-            let remoteDrawCanvas, remoteDrawCtx;
-            const seenDrawIds = new Map();
-            const latestSnapshotSidByPage = new Map();
-            const drawExpectedSeqByPage = new Map();
-            const drawPendingByPage = new Map();
-            const activeStrokeMeta = new Map();
-            const drawResyncRequestedAt = new Map();
-            const latestDrawStateVerByPage = new Map();
-            let remoteCurrentPage = 0;
+            var remoteDrawCanvas, remoteDrawCtx;
+            var seenDrawIds = {}; 
+            var latestSnapshotSidByPage = {};
+            var drawExpectedSeqByPage = {};
+            var drawPendingByPage = {};
+            var activeStrokeMeta = {};
+            var drawResyncRequestedAt = {};
+            var latestDrawStateVerByPage = {};
+            var remoteCurrentPage = 0;
 
             function initRemoteDrawCanvas() {
                 remoteDrawCanvas = document.getElementById('drawCanvas');
@@ -2784,6 +2834,14 @@
             integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ=="
             data-cf-beacon='{"version":"2024.11.0","token":"bddfdc06e9e9456f93dbb2ae3e54a52f","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}'
             crossorigin="anonymous"></script>
+        <script defer
+            src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015"
+            integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ=="
+            data-cf-beacon='{"version":"2024.11.0","token":"bddfdc06e9e9456f93dbb2ae3e54a52f","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}'
+            crossorigin="anonymous"></script>
+        <script defer
+            src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015"
+            crossorigin="anonymous"></script>
 
         <script>
             // Add playVideoInIframe function
@@ -2806,7 +2864,18 @@
                 if (officeIframe) officeIframe.style.display = 'none';
 
                 // 判断是否是外部链接 (Bilibili/YouTube)
-                const isExternal = pendingVideoUrl.includes('player.bilibili.com') || pendingVideoUrl.includes('youtube.com');
+                let isExternal = pendingVideoUrl.includes('player.bilibili.com') || pendingVideoUrl.includes('youtube.com');
+                let finalUrl = pendingVideoUrl;
+
+                // 自动转换 Bilibili 链接
+                if (pendingVideoUrl.includes('bilibili.com') && !pendingVideoUrl.includes('player.bilibili.com')) {
+                    const bvMatch = pendingVideoUrl.match(/video\/(BV[a-zA-Z0-9]+)/);
+                    if (bvMatch) {
+                        finalUrl = `https://player.bilibili.com/player.html?bvid=${bvMatch[1]}&autoplay=1&high_quality=1&danmaku=0`;
+                        window.tvLog('转换 Bilibili 链接: ' + finalUrl);
+                        isExternal = true;
+                    }
+                }
 
                 if (isExternal) {
                     let videoIframe = document.getElementById('videoIframe');
@@ -2814,10 +2883,11 @@
                         videoIframe = document.createElement('iframe');
                         videoIframe.id = 'videoIframe';
                         videoIframe.style.cssText = 'width:100%; height:100%; border:none; background:black; position:absolute; top:0; left:0; z-index:200;';
-                        videoIframe.allow = "autoplay; fullscreen";
+                        videoIframe.allow = "autoplay; fullscreen; encrypted-media; picture-in-picture";
+                        videoIframe.sandbox = "allow-top-navigation allow-same-origin allow-forms allow-scripts allow-popups";
                         document.body.appendChild(videoIframe);
                     }
-                    videoIframe.src = pendingVideoUrl;
+                    videoIframe.src = finalUrl;
                     videoIframe.style.display = 'block';
                 } else {
                     // MP4 / WebM

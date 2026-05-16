@@ -439,36 +439,12 @@
             layer.style.display = 'flex';
             
             var type = state.type || 'text';
-            var fit = state.fit === 'cover' ? 'cover' : 'contain';
-
-            // 辅助函数：转换视频链接
-            var formatMediaUrl = function(url) {
-                if (!url) return '';
-                var bvMatch = url.match(/video\/(BV[a-zA-Z0-9]+)/i);
-                if (bvMatch) return 'https://player.bilibili.com/player.html?bvid=' + bvMatch[1] + '&autoplay=1&muted=0&page=1&high_quality=1&as_wide=1';
-                var avMatch = url.match(/video\/(av[0-9]+)/i);
-                if (avMatch) return 'https://player.bilibili.com/player.html?aid=' + avMatch[1].replace('av', '') + '&autoplay=1&muted=0&page=1&high_quality=1&as_wide=1';
-                return url;
-            };
-
             if (type === 'image') {
-                layer.innerHTML = '<img src="' + content + '" style="max-width:100%; max-height:100%; object-fit:' + fit + ';">';
+                layer.innerHTML = '<img src="' + content + '" style="max-width:100%; max-height:100%;">';
             } else if (type === 'text') {
-                layer.innerHTML = '<div style="font-size:30px; padding:40px; color:white; text-align:center;">' + content + '</div>';
+                layer.innerHTML = '<div style="font-size:30px; padding:40px; color:white;">' + content + '</div>';
             } else if (type === 'video') {
-                var src = formatMediaUrl(content);
-                if (src.indexOf('player.bilibili.com') >= 0) {
-                    layer.innerHTML = '<iframe src="' + src + '" style="width:100%; height:100%; border:none;" allow="autoplay; fullscreen" allowfullscreen></iframe>';
-                } else {
-                    layer.innerHTML = '<video src="' + src + '" controls autoplay style="width:100%; height:100%; object-fit:' + fit + ';"></video>';
-                }
-            } else if (type === 'iframe' || type === 'html') {
-                var src = formatMediaUrl(state.url || content);
-                if (state.url) {
-                    layer.innerHTML = '<iframe src="' + src + '" style="width:100%; height:100%; border:none; background:#fff;" allow="autoplay; fullscreen" allowfullscreen></iframe>';
-                } else {
-                    layer.innerHTML = '<div style="width:100%; height:100%; background:#000;">' + (state.content || '') + '</div>';
-                }
+                layer.innerHTML = '<video src="' + content + '" controls autoplay style="width:100%; height:100%;"></video>';
             }
         }
     </script>

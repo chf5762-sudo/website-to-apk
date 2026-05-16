@@ -1,29 +1,53 @@
 {
-  "name": "WebDAV 演示系统",
-  "short_name": "WebDAV演示",
-  "start_url": "./index.html",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#409eff",
-  "description": "基于 WebDAV 和 MQTT 的文件演示与遥控系统",
-  "icons": [
-    {
-      "src": "icon.png",
-      "sizes": "512x512",
-      "type": "image/png"
+    "id" : "__UNI__19FB087",
+    "name" : "TV大屏展示终端",
+    "version" : {
+        "name" : "1.0.0",
+        "code" : "100"
     },
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
+    "description" : "专为Android TV打造的远程展示端",
+    "icons" : {
+        "72" : "icon.png",
+        "96" : "icon.png",
+        "144" : "icon.png",
+        "192" : "icon.png",
+        "256" : "icon.png"
     },
-    {
-      "src": "apple-touch-icon.png",
-      "sizes": "180x180",
-      "type": "image/png"
-    }
-  ],
-  "orientation": "any",
-  "scope": "./",
-  "categories": ["utilities", "productivity"]
+    "launch_path" : "index.html",
+    "plus" : {
+        "splashscreen" : {
+            "autoclose" : true,
+            "waiting" : true
+        },
+        "distribute" : {
+            "google" : {
+                "permissions" : [
+                    "<uses-permission android:name=\"android.permission.INTERNET\"/>",
+                    "<uses-permission android:name=\"android.permission.WAKE_LOCK\"/>",
+                    "<uses-feature android:name=\"android.hardware.touchscreen\" android:required=\"false\"/>",
+                    "<uses-feature android:name=\"android.software.leanback\" android:required=\"false\"/>"
+                ],
+                "abiFilters" : [ "armeabi-v7a" ]
+            },
+            "orientation" : [ "landscape-primary", "landscape-secondary" ],
+            "android" : {
+                "manifest" : {
+                    "application" : {
+                        "usesCleartextTraffic" : "true",
+                        "activity" : {
+                            "intent-filter" : [
+                                "<action android:name=\"android.intent.action.MAIN\"/>",
+                                "<category android:name=\"android.intent.category.LAUNCHER\"/>",
+                                "<category android:name=\"android.intent.category.LEANBACK_LAUNCHER\"/>"
+                            ]
+                        }
+                    }
+                }
+            },
+            "ios" : {
+                "dSYMs" : false
+            }
+        }
+    },
+    "screenOrientation" : [ "landscape-primary", "landscape-secondary" ]
 }
