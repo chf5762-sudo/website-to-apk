@@ -2,9 +2,9 @@ name: Build TV APK
 
 on:
   push:
-    branches: [ "pptshow-xiaomi-apk" ]
+    branches: [ "Hbuilder-pptshow-xiaomi-apk" ]
   pull_request:
-    branches: [ "pptshow-xiaomi-apk" ]
+    branches: [ "Hbuilder-pptshow-xiaomi-apk" ]
   workflow_dispatch:
 
 jobs:
