@@ -116,7 +116,7 @@
                 right: 20px;
                 z-index: 2147483647;
                 pointer-events: none;
-                transition: transform 0.3s ease-in-out;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             `;
             document.body.appendChild(mainWrapper);
         }
@@ -124,7 +124,7 @@
         // 3. 核心容器 (Presenter 模式下不再显示 参会人员 弹窗)
         const isRemote = window.location.pathname.includes('remote');
         mainWrapper.innerHTML = `
-            <div id="agora-video-stage" style="display:none; ${isRemote ? 'pointer-events:none; width:100%; height:100%; background:#000;' : 'pointer-events:auto; width:360px; height:220px; background:rgba(20,25,30,0.9); border:1px solid rgba(255,255,255,0.2); border-radius:14px; overflow:hidden;' }">
+            <div id="agora-video-stage" style="display:none; ${isRemote ? 'pointer-events:none; width:100%; height:100%; background:#000;' : 'pointer-events:auto; width:360px; height:220px; background:rgba(15,20,25,0.45); backdrop-filter:blur(16px) saturate(180%); -webkit-backdrop-filter:blur(16px) saturate(180%); border:1px solid rgba(255,255,255,0.12); border-radius:14px; overflow:hidden;' }">
                 ${isRemote ? '' : `
                 <div id="agora-presenter-watch-toolbar" style="position:absolute; top:8px; right:8px; z-index:30; display:flex; gap:8px;">
                     <button id="agora-watch-pause-btn" title="暂停观看" style="width:34px; height:30px; border:none; border-radius:8px; background:rgba(0,0,0,0.55); color:#fff; cursor:pointer; font-size:15px;">⏸</button>
@@ -190,13 +190,13 @@
             const toggleBtn = document.createElement('button');
             toggleBtn.innerHTML = '》'; // 默认状态
             toggleBtn.title = '隐藏工具栏';
-            toggleBtn.style.cssText = 'width:28px; height:42px; border-radius:8px; border:none; background:rgba(60,60,60,0.9); color:#fff; cursor:pointer; font-size:16px; font-weight:bold; display:flex; align-items:center; justify-content:center; transition:all 0.3s; opacity:0.8; padding:0;';
+            toggleBtn.style.cssText = 'width:28px; height:42px; border-radius:8px; border:none; background:rgba(255,255,255,0.15); color:#fff; cursor:pointer; font-size:16px; font-weight:bold; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(10px); transition:all 0.3s; opacity:0.8; padding:0;';
             toggleBtn.onmouseover = () => { toggleBtn.style.opacity = '1'; };
             toggleBtn.onmouseout = () => { toggleBtn.style.opacity = '0.8'; };
 
             const btnGroup = document.createElement('div');
             btnGroup.id = 'agora-btn-group';
-            btnGroup.style.cssText = 'display:flex; gap:10px; overflow:hidden; transition: max-width 0.3s ease-in-out, opacity 0.3s; max-width: 200px; opacity: 1; align-items:center;';
+            btnGroup.style.cssText = 'display:flex; gap:10px; overflow:hidden; transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s; max-width: 200px; opacity: 1; align-items:center;';
 
             let isCollapsed = false;
 
@@ -225,7 +225,7 @@
             shareDot.id = 'agora-share-dot';
             shareDot.innerHTML = '💻';
             shareDot.title = '共享屏幕';
-            shareDot.style.cssText = 'width:42px; height:42px; border-radius:8px; border:none; background:rgba(60,60,60,0.9); color:#fff; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; transition:all 0.3s; opacity:0.8; flex-shrink:0;';
+            shareDot.style.cssText = 'width:42px; height:42px; border-radius:8px; border:none; background:rgba(255,255,255,0.15); color:#fff; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(10px); transition:all 0.3s; opacity:0.8; flex-shrink:0;';
             shareDot.onmouseover = () => { shareDot.style.opacity = '1'; shareDot.style.transform = 'translateY(-3px)'; };
             shareDot.onmouseout = () => { shareDot.style.opacity = '0.8'; shareDot.style.transform = 'translateY(0)'; };
             shareDot.onclick = () => { window.agoraModule && window.agoraModule.startScreenShare(); };
@@ -235,7 +235,7 @@
             micBtn.id = 'agora-mic-btn';
             micBtn.innerHTML = '🎤';
             micBtn.title = '开启/关闭麦克风';
-            micBtn.style.cssText = 'width:42px; height:42px; border-radius:8px; border:none; background:rgba(60,60,60,0.9); color:#fff; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.15); font-size:18px; display:flex; align-items:center; justify-content:center; transition:all 0.3s; opacity:0.8; flex-shrink:0;';
+            micBtn.style.cssText = 'width:42px; height:42px; border-radius:8px; border:none; background:rgba(255,255,255,0.15); color:#fff; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.15); font-size:18px; display:flex; align-items:center; justify-content:center; backdrop-filter: blur(10px); transition:all 0.3s; opacity:0.8; flex-shrink:0;';
             micBtn.onmouseover = () => { micBtn.style.opacity = '1'; micBtn.style.transform = 'translateY(-3px)'; };
             micBtn.onmouseout = () => { micBtn.style.opacity = '0.8'; micBtn.style.transform = 'translateY(0)'; };
             micBtn.onclick = () => { window.agoraModule && window.agoraModule.toggleMic() };
@@ -244,7 +244,7 @@
             camBtn.id = 'agora-cam-btn';
             camBtn.innerHTML = '📷';
             camBtn.title = '开启/关闭摄像头';
-            camBtn.style.cssText = 'width:42px; height:42px; border-radius:8px; border:none; background:rgba(60,60,60,0.9); color:#fff; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; transition:all 0.3s; opacity:0.8; flex-shrink:0;';
+            camBtn.style.cssText = 'width:42px; height:42px; border-radius:8px; border:none; background:rgba(255,255,255,0.15); color:#fff; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(10px); transition:all 0.3s; opacity:0.8; flex-shrink:0;';
             camBtn.onmouseover = () => { camBtn.style.opacity = '1'; camBtn.style.transform = 'translateY(-3px)'; };
             camBtn.onmouseout = () => { camBtn.style.opacity = '0.8'; camBtn.style.transform = 'translateY(0)'; };
             camBtn.onclick = () => { window.agoraModule && window.agoraModule.toggleVideo(); };
@@ -254,7 +254,7 @@
             chatBtn.id = 'agora-chat-btn';
             chatBtn.innerHTML = '💬';
             chatBtn.title = '讨论群';
-            chatBtn.style.cssText = 'width:42px; height:42px; border-radius:8px; border:none; background:rgba(60,60,60,0.9); color:#fff; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; transition:all 0.3s; opacity:0.8; flex-shrink:0;';
+            chatBtn.style.cssText = 'width:42px; height:42px; border-radius:8px; border:none; background:rgba(255,255,255,0.15); color:#fff; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(10px); transition:all 0.3s; opacity:0.8; flex-shrink:0;';
             chatBtn.onmouseover = () => { chatBtn.style.opacity = '1'; chatBtn.style.transform = 'translateY(-3px)'; };
             chatBtn.onmouseout = () => { chatBtn.style.opacity = '0.8'; chatBtn.style.transform = 'translateY(0)'; };
             chatBtn.onclick = () => { 
@@ -324,7 +324,7 @@
                 const shareBtn = document.createElement('button');
                 shareBtn.id = 'agora-share-btn';
                 shareBtn.innerHTML = '💻 共享屏幕';
-                shareBtn.style.cssText = 'padding:0 15px; height:42px; border-radius:8px; border:none; background:#f0f2f5; color:#606266; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.2); font-weight:bold; font-size:13px; display:flex; align-items:center; gap:8px; transition:all 0.3s;';
+                shareBtn.style.cssText = 'padding:0 15px; height:42px; border-radius:8px; border:none; background:rgba(255,255,255,0.9); color:#606266; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.2); font-weight:bold; font-size:13px; display:flex; align-items:center; gap:8px; backdrop-filter: blur(10px); transition:all 0.3s;';
                 shareBtn.onmouseover = () => { if (!shareBtn.disabled) shareBtn.style.transform = 'translateY(-3px)'; };
                 shareBtn.onmouseout = () => { if (!shareBtn.disabled) shareBtn.style.transform = 'translateY(0)'; };
                 shareBtn.onclick = () => { window.agoraModule && window.agoraModule.startScreenShare() };
@@ -334,7 +334,7 @@
                 micBtn.id = 'agora-mic-btn';
                 micBtn.innerHTML = '🎤';
                 micBtn.title = '开启/关闭麦克风';
-                micBtn.style.cssText = 'width:42px; height:42px; border-radius:8px; border:none; background:#f0f2f5; color:#606266; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.2); font-size:20px; display:flex; align-items:center; justify-content:center; transition:all 0.3s;';
+                micBtn.style.cssText = 'width:42px; height:42px; border-radius:8px; border:none; background:rgba(255,255,255,0.9); color:#606266; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.2); font-size:20px; display:flex; align-items:center; justify-content:center; backdrop-filter: blur(10px); transition:all 0.3s;';
                 micBtn.onmouseover = () => { micBtn.style.transform = 'translateY(-3px)'; };
                 micBtn.onmouseout = () => { micBtn.style.transform = 'translateY(0)'; };
                 micBtn.onclick = () => { window.agoraModule && window.agoraModule.toggleMic() };
@@ -344,7 +344,7 @@
                 camBtn.id = 'agora-cam-btn';
                 camBtn.innerHTML = '📷';
                 camBtn.title = '开启/关闭摄像头';
-                camBtn.style.cssText = 'width:42px; height:42px; border-radius:8px; border:none; background:#f0f2f5; color:#606266; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.2); font-size:20px; display:flex; align-items:center; justify-content:center; transition:all 0.3s;';
+                camBtn.style.cssText = 'width:42px; height:42px; border-radius:8px; border:none; background:rgba(255,255,255,0.9); color:#606266; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.2); font-size:20px; display:flex; align-items:center; justify-content:center; backdrop-filter: blur(10px); transition:all 0.3s;';
                 camBtn.onmouseover = () => { camBtn.style.transform = 'translateY(-3px)'; };
                 camBtn.onmouseout = () => { camBtn.style.transform = 'translateY(0)'; };
                 camBtn.onclick = () => { window.agoraModule && window.agoraModule.toggleVideo() };
@@ -1504,7 +1504,7 @@
             activeScreenSharerUid = uid;
         },
         enterPresenterPreviewMode: function(uid) {
-            activeScreenSharerUid = (uid != null) ? uid : activeScreenSharerUid;
+            activeScreenSharerUid = uid ?? activeScreenSharerUid;
             if (window.location.pathname.includes('remote')) return;
             mountPresenterStageToPreview();
             startScreenRecoveryWatch();

@@ -13,7 +13,7 @@
             API_BASE: API_BASE_URL,
             // 注意：这里的 URL 是前端访问 Worker 代理的地址
             KKFILEVIEW: { URL: API_BASE_URL + "/api/kkfileview" },
-            MQTT: { BEMFA_KEY: '3eb42d69d8b226abe22024d648975f8a', BROKER: 'ws://broker.emqx.io:8083/mqtt', TOPIC: 'PPT001', STATUS_TOPIC: 'PPT002' },
+            MQTT: { BEMFA_KEY: '3eb42d69d8b226abe22024d648975f8a', BROKER: 'wss://broker.emqx.io:8084/mqtt', TOPIC: 'PPT001', STATUS_TOPIC: 'PPT002' },
             PREVIEW_TOKEN: "Allow_Public_Preview_Access_2025"
         };
         // ============================================
