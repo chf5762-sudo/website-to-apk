@@ -1,0 +1,52 @@
+﻿name: Build APK (No HBuilder)
+
+on:
+  push:
+    branches: [ "sync/hbuilder-tv-app-20260516" ]
+  pull_request:
+    branches: [ "sync/hbuilder-tv-app-20260516" ]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Cordova CLI
+        run: npm install -g cordova
+
+      - name: Build Android APK with Cordova
+        run: |
+          set -eux
+          cordova create ci-build com.example.tvapp TVApp
+          cd ci-build
+          cordova platform add android
+
+          # Replace generated web assets with current repo files (HBuilder output)
+          rm -rf www/*
+          rsync -av --delete ../ ./www/ \
+            --exclude .git \
+            --exclude .github \
+            --exclude ci-build
+
+          cordova build android --debug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tvapp-cordova-debug-apk
+          path: ci-build/platforms/android/app/build/outputs/apk/debug/*.apk
