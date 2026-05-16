@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - master
+      - tencent-x5-empty
   workflow_dispatch:
 jobs:
   build:
