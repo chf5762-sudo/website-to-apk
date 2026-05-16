@@ -571,6 +571,11 @@ public class MainActivity extends AppCompatActivity {
         Open HTML5 video in fullscreen
     */
     private class CustomWebChrome extends WebChromeClient {
+        // 修复：防止老旧设备上 video 标签默认封面的 CORS 报错
+        @Override
+        public Bitmap getDefaultVideoPoster() {
+            return Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
+        }
 
         @Override
         public boolean onConsoleMessage(ConsoleMessage consoleMessage) {

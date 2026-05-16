@@ -133,7 +133,7 @@
             <canvas id="pdfCanvas" style="display: none;"></canvas>
             <canvas id="drawCanvas" style="position:absolute; top:0; left:0; pointer-events:none; display:none; z-index:10;"></canvas>
             <img id="imageDisplay" style="display: none;" />
-            <video id="videoDisplay" style="display: none;" controls autoplay></video>
+            <video id="videoDisplay" style="display: none;" controls autoplay crossorigin="anonymous" playsinline webkit-playsinline oncontextmenu="return false;" onerror="window.tvLog('🎬 视频加载失败: ' + (this.error ? this.error.code + ' ' + this.error.message : '未知原因'), 'error')"></video>
             <div id="agentScreenLayer"></div>
 
             <div id="placeholder">
