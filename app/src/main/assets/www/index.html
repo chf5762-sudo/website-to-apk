@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>会议系统</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#409eff">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="WebDAV演示">
+    <script src="https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #fff;
+            height: 100vh;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        
+        /* 全局现代滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(0, 0, 0, 0.5);
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+
+        .container {
+            background: white;
+            padding: 0;
+            border-radius: 0;
+            box-shadow: none;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            flex: 1;
+        }
+
+        .header {
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            background: #fff;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .mqtt-status {
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mqtt-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #999;
+            transition: all 0.3s;
+        }
+
+        .mqtt-indicator.connected {
+            background: #4caf50;
+            box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        .mqtt-indicator.error {
+            background: #e74c3c;
+            box-shadow: 0 0 0 4px rgba(231, 76, 60, 0.3);
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+            }
+
+            50% {
+                box-shadow: 0 0 0 8px rgba(76, 175, 80, 0);
+            }
+        }
+
+        .toolbar {
+            padding: 0;
+            background: transparent;
+            border-bottom: none;
+            display: flex;
+            gap: 5px;
+            flex-wrap: nowrap;
+            align-items: center;
+        }
+
+        button {
+            padding: 6px 12px;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 13px;
+            color: #606266;
+        }
+
+        button:hover {
+            color: #409eff;
+            border-color: #c6e2ff;
+            background-color: #ecf5ff;
+        }
+
+        button.primary {
+            background: #409eff;
+            color: white;
+            border-color: #409eff;
+        }
+
+        button.primary:hover {
+            background: #66b1ff;
+        }
+
+        button.success {
+            background: #67c23a;
+            color: white;
+            border-color: #67c23a;
+        }
+
+        button.success:hover {
+            background: #85ce61;
+        }
+
+        button.danger {
+            color: #f56c6c;
+            border-color: #fbc4c4;
+            background: #fef0f0;
+        }
+
+        .sort-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-left: auto;
+        }
+
+        .sort-group select {
+            padding: 4px 8px;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            font-size: 13px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .left-panel {
+            width: 320px;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #eee;
+            background: #fff;
+            flex-shrink: 0;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .breadcrumb {
+            padding: 0 10px;
+            font-size: 13px;
+            font-weight: bold;
+            color: #333;
+            background: transparent;
+            border-bottom: none;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-list {
+            flex: 1;
+            min-height: 0;
+            height: 100%;
+            overflow-y: auto !important;
+            overflow-x: hidden;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0,0,0,0.3) rgba(0,0,0,0.04);
+        }
+        .file-list::-webkit-scrollbar {
+            width: 10px;
+        }
+        .file-list::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.03); /* 常驻的淡色滚动槽，暗示这里可以滑动 */
+            border-radius: 5px;
+        }
+        .file-list::-webkit-scrollbar-thumb {
+            background-color: rgba(0,0,0,0.25);
+            border-radius: 5px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+        .file-list::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(0,0,0,0.45);
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 15px;
+            border-bottom: 1px solid #f9f9f9;
+            cursor: pointer;
+            transition: 0.1s;
+            position: relative;
+            user-select: none;
+        }
+
+        .file-item:hover {
+            background: #f5f7fa;
+        }
+
+        .file-item.selected {
+            background: #ecf5ff;
+            color: #409eff;
+        }
+
+        .file-item.drag-over {
+            background: #e1f3d8;
+            border: 2px dashed #67c23a;
+        }
+
+        .file-item.dragging {
+            opacity: 0.5;
+        }
+
+        .file-item.drag-over-top {
+            border-top: 3px solid #409eff;
+        }
+
+        .file-item.drag-over-bottom {
+            border-bottom: 3px solid #409eff;
+        }
+
+        .file-icon {
+            font-size: 20px;
+            margin-right: 10px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .file-name {
+            font-size: 13px;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .file-badge {
+            font-size: 10px;
+            background: #67c23a;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 5px;
+        }
+
+        .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .preview-header {
+            height: 45px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            font-weight: 500;
+            font-size: 14px;
+            background: #fafafa;
+        }
+
+        .preview-body {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+            background: #fdfdfd;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .preview-msg {
+            margin: auto;
+            color: #909399;
+            text-align: center;
+        }
+
+        .preview-iframe {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .preview-video {
+            width: 100%;
+            max-height: 100%;
+            outline: none;
+            background: black;
+        }
+
+        .preview-img {
+            max-width: 100%;
+            margin: 20px auto;
+            display: block;
+        }
+
+        #editor-textarea {
+            flex: 1;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 20px;
+            font-family: Consolas, Monaco, monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            border: none;
+            outline: none;
+            resize: none;
+            color: #333;
+            background: #fff;
+        }
+
+        .link-bar {
+            background: #fffbe8;
+            color: #e6a23c;
+            padding: 10px;
+            border-bottom: 1px solid #faecd8;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .ctx-menu {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            background: white;
+            border: 1px solid #e4e7ed;
+            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
+            padding: 5px 0;
+            min-width: 120px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .ctx-item {
+            padding: 8px 15px;
+            font-size: 13px;
+            color: #606266;
+            cursor: pointer;
+            transition: 0.1s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .ctx-item:hover {
+            background: #ecf5ff;
+            color: #409eff;
+        }
+
+        .ctx-item.danger {
+            color: #f56c6c;
+        }
+
+        .ctx-item.danger:hover {
+            background: #fef0f0;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-box {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            width: 350px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .modal input {
+            width: 100%;
+            padding: 8px 10px;
+            margin-bottom: 15px;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .modal-footer {
+            text-align: right;
+            gap: 10px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .modal-label {
+            font-size: 12px;
+            color: #909399;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .presentation-mode {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: black;
+            z-index: 10000;
+            display: none;
+            flex-direction: column;
+        }
+
+        .presentation-mode.active {
+            display: flex;
+        }
+
+        .presentation-header {
+            height: 50px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            font-size: 14px;
+            position: relative;
+            z-index: 100;
+        }
+
+        .presentation-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .presentation-controls button {
+            background: rgba(255, 255, 255, 0.9);
+            color: #409eff;
+            border: 1px solid #409eff;
+            font-weight: bold;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .presentation-controls button:hover {
+            background: #f0f7ff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(64, 158, 255, 0.2);
+        }
+
+        .presentation-controls button.active {
+            background: #409eff !important;
+            color: white !important;
+            border-color: #409eff !important;
+        }
+
+        /* 浮动翻页按钮样式 */
+        .page-nav-overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 75%; /* Moved to 25% from the right */
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            gap: 15px;
+        }
+
+        .page-nav-btn {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s;
+        }
+
+        .page-nav-btn:hover {
+            transform: translateY(-5px) scale(1.1);
+            background: rgba(255, 255, 255, 0.9);
+            color: #409eff;
+        }
+
+        .presentation-iframe {
+            flex: 1;
+            width: 100%;
+            border: none;
+            background: white;
+        }
+
+        .presentation-canvas-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: auto;
+            background: #525659;
+            position: relative;
+        }
+
+        /* ====== 智能显示模式 (演示端) ====== */
+        .presentation-canvas-container.mode-presentation {
+            background: #000 !important;
+        }
+        .presentation-canvas-container.mode-presentation .presentation-canvas {
+            box-shadow: none;
+            border-radius: 0;
+        }
+        .presentation-canvas-container.mode-document {
+            background: linear-gradient(180deg, #2c2c30 0%, #38383e 50%, #2c2c30 100%) !important;
+        }
+        .presentation-canvas-container.mode-document .presentation-canvas {
+            box-shadow: 0 8px 48px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04);
+            border-radius: 3px;
+        }
+        .presentation-canvas-container.mode-mixed {
+            background: #1a1a1e !important;
+        }
+        .presentation-canvas-container.mode-mixed .presentation-canvas {
+            box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+            border-radius: 2px;
+        }
+        body:fullscreen .presentation-canvas-container.mode-presentation,
+        body:-webkit-full-screen .presentation-canvas-container.mode-presentation {
+            background: #000 !important;
+        }
+        body:fullscreen .presentation-canvas-container.mode-document,
+        body:-webkit-full-screen .presentation-canvas-container.mode-document {
+            background: linear-gradient(180deg, #18181b 0%, #23232a 50%, #18181b 100%) !important;
+        }
+
+        .presentation-canvas {
+            max-width: 100%;
+            max-height: 100%;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .presentation-loading {
+            color: white;
+            font-size: 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .presentation-loading .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .page-info {
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        /* 演示设置浮层菜单 - 优化阴影与圆角 */
+        .pres-settings-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-top: 10px;
+            width: 180px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(15px);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            padding: 8px 0;
+            z-index: 10100;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            animation: slideInDown 0.2s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        @keyframes slideInDown {
+            from { transform: translateY(-10px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .pres-settings-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #333;
+            font-size: 12px;
+        }
+
+        .pres-settings-item:hover {
+            background: rgba(64, 158, 255, 0.15);
+            color: #409eff;
+        }
+
+        .pres-settings-item .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #ccc;
+            margin-right: 8px;
+        }
+
+        .pres-settings-item.active .status-dot {
+            background: #67c23a;
+            box-shadow: 0 0 6px rgba(103, 194, 58, 0.6);
+        }
+
+        .pres-settings-item .toggle-label {
+            flex: 1;
+            font-weight: 500;
+        }
+
+        .pres-settings-item .status-text {
+            font-size: 10px;
+            color: #999;
+        }
+
+        .pres-settings-item.active .status-text {
+            color: #67c23a;
+        }
+
+        /* 精筒版悬浮工具栏 (优化为胶囊样式) */
+        .pres-toolbar {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10000;
+            display: flex;
+            flex-direction: row;
+            gap: 12px;
+            padding: 8px 20px;
+            background: rgba(43, 43, 43, 0.7);
+            backdrop-filter: blur(20px);
+            border-radius: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+        }
+
+        .pres-toolbar:hover {
+            background: rgba(50, 50, 50, 0.85);
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+        
+        .toolbar-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            opacity: 1;
+        }
+        
+        .toolbar-sep {
+            width: 1px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.2);
+            margin: 0 4px;
+            align-self: center;
+        }
+
+        .toolbar-btn {
+            width: 38px;
+            height: 38px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            outline: none;
+            position: relative;
+        }
+
+        .toolbar-btn:hover {
+            background: rgba(255, 255, 255, 0.4);
+            transform: scale(1.1);
+        }
+
+        .toolbar-btn.active {
+            background: rgba(64, 158, 255, 0.6) !important;
+            border-color: #409eff;
+            filter: grayscale(0) !important;
+        }
+
+        .toolbar-btn.eraser.active {
+            background: rgba(255, 255, 255, 0.8) !important;
+            color: #333;
+        }
+        
+        .toolbar-btn.exit-btn-red {
+            color: #ff5c5c;
+            transition: all 0.3s;
+        }
+        .toolbar-btn.exit-btn-red:hover {
+            background: rgba(255, 92, 92, 0.2);
+            color: #ff5c5c;
+        }
+
+        /* Login styles */
+        #login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #f4f6f8;
+            z-index: 20000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            /* 默认隐藏，验证失败后才淡入，防止刷新闪烁 */
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+        #login-overlay.visible {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            width: 320px;
+            text-align: center;
+        }
+
+        .login-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .login-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        .login-hint {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 12px;
+            background: #409eff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .login-btn:hover {
+            background: #66b1ff;
+        }
+
+        .error-msg {
+            color: red;
+            font-size: 14px;
+            display: none;
+            margin-bottom: 10px;
+        }
+        /* Meeting Invitation Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #2c3e50;
+            text-align: center;
+        }
+
+        .invite-form input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+
+        .share-card {
+            background: #f8f9fa;
+            border: 1px dashed #409eff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+            text-align: center;
+        }
+
+        .share-card textarea {
+            width: 100%;
+            height: 80px;
+            background: transparent;
+            border: none;
+            resize: none;
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        #qrcode {
+            display: flex;
+            justify-content: center;
+            margin: 15px 0;
+        }
+
+        .close-modal {
+            float: right;
+            cursor: pointer;
+            font-size: 20px;
+            color: #999;
+            font-size: 13px;
+            max-width: 85%;
+            word-break: break-all;
+            line-height: 1.5;
+        }
+
+
+
+
+    </style>
+    <!-- Agora 独立音视频模块 -->
+    <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>
+    <script src="agora-call.js"></script>
+    
+    <!-- 引入提取出的玻璃拟态UI样式 -->
+    <link rel="stylesheet" href="chat-glass-style.css">
+</head>
+
+<body>
+    <!-- 互动讨论侧边栏 -->
+    <div id="discussion-sidebar">
+        <div class="discussion-content">
+            <div class="discussion-header" onclick="toggleUserList()" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; user-select:none;">
+                <span style="display:flex;align-items:center;gap:6px;">
+                    💬 <span style="font-size:13px;">讨论</span>
+                    <span id="online-count-badge" style="font-size:11px; background:rgba(64,158,255,0.25); color:#79bbff; padding:2px 8px; border-radius:10px; font-weight:bold;">1 人</span>
+                </span>
+                <span id="user-list-arrow" style="font-size:11px; opacity:0.4; transition:transform 0.2s;">▼</span>
+            </div>
+            <div id="discussion-user-list" style="display: none;">
+                <!-- 动态渲染参会者 -->
+            </div>
+            <div id="message-list">
+                <!-- 消息列表为空，不再显示预设欢迎语 -->
+            </div>
+            <div class="discussion-input-area">
+                <button type="button" title="发送文件" onclick="document.getElementById('discussion-file-input').click()" style="padding: 0 8px; font-size: 18px; border:none; background:none;">📎</button>
+                <input type="file" id="discussion-file-input" style="display: none;" onchange="handleDiscussionFileUpload(this)">
+                <input type="text" id="discussion-input" placeholder="输入消息..." onkeydown="if(event.key==='Enter') sendChatMessage()">
+                <button class="primary" onclick="sendChatMessage()" style="border-radius: 18px; padding: 5px 15px;">发送</button>
+            </div>
+        </div>
+    </div>
+    <button id="chat-fab" onclick="toggleDiscussion()" title="聊天">💬</button>
+    <div id="login-overlay">
+        <div class="login-box">
+            <div class="login-title" id="login-title">会议系统</div>
+            <div class="login-hint" id="login-hint" style="display:none"></div>
+            
+            <input type="text" id="login-user" class="login-input" placeholder="用户名" autocomplete="off">
+            <input type="password" id="login-pass" class="login-input" placeholder="密码" autocomplete="off">
+            <div style="margin: 6px 0 2px; padding:8px 10px; border:1px solid #ebeef5; border-radius:8px; background:#fafafa; font-size:12px; color:#606266;">
+                <div style="font-weight:600; margin-bottom:6px;">会议默认音视频</div>
+                <label style="display:flex; align-items:center; gap:6px; margin-bottom:4px; cursor:pointer;">
+                    <input type="checkbox" id="login-default-mic">
+                    <span>默认开启麦克风</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                    <input type="checkbox" id="login-default-video">
+                    <span>默认开启摄像头</span>
+                </label>
+            </div>
+            <div id="login-error" class="error-msg"></div>
+            
+            <button class="login-btn" id="login-btn" onclick="doLogin()">登录</button>
+            <div style="margin-top: 10px; display: flex; gap: 8px;">
+                <button class="login-btn" style="background:#e6a23c; flex:1" id="toggle-auth" onclick="toggleAuthMode()">注册账号</button>
+                <button class="login-btn" style="background:#67c23a; flex:1" onclick="showGuestLogin()">免密试用</button>
+            </div>
+        </div>
+    </div>
+    <div class="container">
+        <div class="header">
+            <div style="display:flex; align-items:center; flex:1; min-width:0; flex-wrap:nowrap; overflow:hidden;">
+                <button id="btn-start-now" class="primary" style="background:#000; color:#fff; font-weight:bold; border:1px solid #000; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:14px; white-space:nowrap; margin-right:5px; flex-shrink:0;" onclick="showStartNowModal()">▶ 现在开始</button>
+                <div class="breadcrumb" style="flex-shrink:0; max-width:200px; padding:0 10px; margin:0; border:none; background:transparent;">📍 <span id="current-path">/</span></div>
+                
+                <div class="toolbar" style="flex:1; overflow-x:auto; border:none; padding:0; background:transparent; margin-left:10px;">
+                    <button class="primary" onclick="triggerUpload()">📤 上传</button>
+                    <button style="color:#67c23a; border-color:#e1f3d8; background:#f0f9eb;" onclick="openModal('link')">🔗
+                        存链接</button>
+                    <button style="color:#00aeec; border-color:#a0e1fb; background:#f0faff;" onclick="openModal('bili')">📺
+                        B站专题</button>
+                    <div style="width:1px; height:20px; background:#eee; margin:0 5px;"></div>
+                    <button id="btn-admin-users" onclick="openAdminPanel()" style="display:none; background:#9c27b0; color:white; align-items:center; gap:5px;">👥 用户管理</button>
+
+                    <div class="sort-group" style="margin-left:5px;">
+                        <span style="font-size:12px; color:#909399;">排序:</span>
+                        <select id="sort-select" onchange="applySortAndRender()">
+                            <option value="name" selected>名称</option>
+                            <option value="type">类型</option>
+                            <option value="date">日期</option>
+                            <option value="folder">文件夹优先</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mqtt-status" style="white-space:nowrap; flex-shrink:0; align-self:center;">
+                <div class="mqtt-indicator" id="mqtt-indicator"></div>
+                <span id="mqtt-status-text" style="display:none">连接中...</span>
+                <span id="current-user-display" style="font-weight: 500; color: #606266; margin-left: 5px;"></span>
+                <button onclick="doLogout()" style="margin-left:5px; padding:3px 10px; font-size:12px; background:#f56c6c; color:white; border:none; border-radius:4px; cursor:pointer;">退出</button>
+            </div>
+        </div>
+        <div class="main-content">
+            <div class="left-panel" id="drop-zone">
+                <div class="file-list" id="file-list"></div>
+            </div>
+            <div class="right-panel">
+                <div class="preview-header">
+                    <span id="preview-title">预览区</span>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <button id="btn-save" class="success" style="display:none; padding:4px 12px;"
+                            onclick="saveFile()">💾 保存修改</button>
+                    </div>
+                </div>
+                <div class="preview-body" id="preview-container">
+                    <div class="preview-msg">
+                        <div style="font-size:48px; margin-bottom:10px;">🖱️</div>
+                        <div>在左侧文件上 <b>右键单击</b></div>
+                        <div style="font-size:12px; margin-top:5px;">或 <b>拖拽文件</b> 到文件夹移动</div>
+                        <div style="font-size:12px; margin-top:5px;">点击 <b>演示文件</b> 进入全屏演示</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="presentation-mode" id="presentation-mode">
+        <div class="presentation-header">
+            <div style="display:flex; align-items:center; gap:15px;">
+                <span id="presentation-filename" style="font-weight:bold; font-size:16px;">演示文稿</span>
+                <span class="page-info" id="page-info">页码: 1 / ?</span>
+            </div>
+            <div class="presentation-controls" style="display:flex; gap:8px;">
+                <!-- 按钮已移至中央悬浮工具栏 -->
+            </div>
+        </div>
+        <div class="presentation-canvas-container" id="presentation-canvas-container">
+            <div class="presentation-loading" id="presentation-loading">
+                <div class="spinner"></div>
+                <div>正在加载文档...</div>
+            </div>
+            <canvas class="presentation-canvas" id="presentation-canvas" style="display:none;"></canvas>
+            <!-- 涂鸦层 -->
+            <canvas class="draw-canvas" id="draw-canvas"
+                style="display:none; position:absolute; top:0; left:0; pointer-events:none; z-index:10;"></canvas>
+
+            <img id="presentation-image"
+                style="display:none; max-width:100%; max-height:100%; object-fit:contain;"><video
+                id="presentation-video" style="display:none; max-width:100%; max-height:100%; object-fit:contain;"
+                controls autoplay></video>
+                
+            <!-- 右下角悬浮翻页按钮 -->
+            <div class="page-nav-overlay">
+                <div class="page-nav-btn" onclick="prevPageOrFile()" title="上一页 / 上一个文件">⬅️</div>
+                <div class="page-nav-btn" onclick="nextPageOrFile()" title="下一页 / 下一个文件">➡️</div>
+            </div>
+        </div>
+        
+        <!-- 整合后的悬浮工具栏 (涂鸦 + 设置) -->
+        <div id="pres-toolbar" class="pres-toolbar">
+            <button onclick="toggleDiscussion()" class="toolbar-btn" title="讨论群" id="btn-toggle-discussion">💬</button>
+            <div id="draw-tools-group" style="display:none; align-items:center;">
+                <div class="toolbar-sep"></div>
+                <button onclick="toggleDrawTool('pen')" id="tool-pen" class="toolbar-btn" title="画笔" style="filter:grayscale(100%);">✏️</button>
+                <button onclick="toggleDrawTool('eraser')" id="tool-eraser" class="toolbar-btn" title="橡皮擦" style="filter:grayscale(100%); font-size:16px;">擦</button>
+            </div>
+            
+            <div class="toolbar-sep"></div>
+            <!-- 用于 JS 动态插入麦克风和投屏按钮的锚点 -->
+            <span id="agora-anchor"></span>
+            
+            <div class="toolbar-sep"></div>
+            <button id="btn-pres-settings" onclick="togglePresSettingsMenu()" class="toolbar-btn" title="演示设置">⚙️</button>
+            
+            <div class="toolbar-sep"></div>
+            <button onclick="toggleFullScreen()" class="toolbar-btn" title="全屏演示">🔲</button>
+            <button onclick="exitPresentation()" class="toolbar-btn exit-btn-red" title="退出演示">❌</button>
+            
+            <!-- 设置菜单 -->
+            <div id="pres-settings-menu" class="pres-settings-menu"></div>
+        </div>
+    </div>
+    <input type="file" id="upload-input" multiple style="display:none" onchange="handleUpload(this.files)">
+    <div id="ctx-menu" class="ctx-menu">
+        <div class="ctx-item" onclick="openModal('mkdir')">📁 新增文件夹</div>
+        <div class="ctx-item" onclick="triggerUpload()">📤 上传文件</div>
+        <div style="height:1px; background:#eee; margin:4px 0;"></div>
+        <div class="ctx-item" onclick="ctxAction('open')">👁️ 打开/预览</div>
+        <div class="ctx-item" onclick="ctxAction('present')">🎬 全屏演示</div>
+        <div id="ctx-download" class="ctx-item" onclick="ctxAction('download')" style="display:none">📥 下载</div>
+        <div id="ctx-share" class="ctx-item" onclick="ctxAction('share')" style="display:none">🔗 分享链接</div>
+        <div style="height:1px; background:#eee; margin:4px 0;"></div>
+        <div class="ctx-item" onclick="ctxAction('copy')">📋 复制到...</div>
+        <div class="ctx-item" onclick="ctxAction('move')">🚚 移动到...</div>
+        <div class="ctx-item" onclick="ctxAction('rename')">✏️ 重命名</div>
+        <div style="height:1px; background:#eee; margin:4px 0;"></div>
+        <div class="ctx-item danger" onclick="ctxAction('delete')">🗑️ 删除</div>
+    </div>
+    
+    <div id="modal-start-now" class="modal">
+        
+        <div class="modal-box" style="text-align: center; max-width: 400px; padding:30px;">
+            <h3 style="margin-top:0; color:#000;">现在开始</h3>
+            <p style="color:#666; font-size:14px; margin-bottom:20px;">请选择开始会议的方式：</p>
+            <div style="display:flex; flex-direction:column; gap:15px;">
+                <button onclick="startScreenShareDirectly()" style="background:#000; color:#fff; padding:15px; border:none; border-radius:8px; font-size:15px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px;">💻 直接进入屏幕分享显示</button>
+                <button onclick="closeModal('start-now'); showInviteModal()" style="background:#f0f2f5; color:#333; padding:15px; border:1px solid #ddd; border-radius:8px; font-size:15px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px;">🔗 提供邀请链接与二维码</button>
+            </div>
+            <div style="margin-top:20px; display:flex; justify-content:center;">
+                <button style="border:none; padding:8px 24px; border-radius:4px; cursor:pointer; font-size:14px; background:#e4e4e4; color:#666;" onclick="closeModal('start-now')">取消</button>
+            </div>
+        </div>
+    </div>
+    <div id="modal-mkdir" class="modal">
+        <div class="modal-box">
+            <h3>新建文件夹</h3><input type="text" id="input-mkdir">
+            <div class="modal-footer"><button onclick="closeModal('mkdir')">取消</button><button class="primary"
+                    onclick="submitMkdir()">创建</button></div>
+        </div>
+    </div>
+    <div id="modal-link" class="modal">
+        <div class="modal-box">
+            <h3>新建视频链接</h3><input type="text" id="input-link-name" placeholder="名称 (如: 电影.url)"><input type="text"
+                id="input-link-url" placeholder="网址">
+            <div class="modal-footer"><button onclick="closeModal('link')">取消</button><button class="primary"
+                    onclick="submitLink()">创建</button></div>
+        </div>
+    </div>
+    <div id="modal-bili" class="modal">
+        <div class="modal-box">
+            <h3>新建 Bilibili 专题/分集</h3>
+            <span class="modal-label">名称 (如: AI教程)</span>
+            <input type="text" id="input-bili-name" placeholder="名称器自动补全 .url">
+            <span class="modal-label">B站地址 (支持 ?p=5 分集 / 包含 sid 合集)</span>
+            <input type="text" id="input-bili-url" placeholder="https://www.bilibili.com/video/BV...">
+            <div class="modal-footer"><button onclick="closeModal('bili')">取消</button><button class="primary"
+                    onclick="submitBiliLink()">创建</button></div>
+        </div>
+    </div>
+    <div id="modal-rename" class="modal">
+        <div class="modal-box">
+            <h3>重命名</h3><input type="text" id="input-rename">
+            <div class="modal-footer"><button onclick="closeModal('rename')">取消</button><button class="primary"
+                    onclick="submitRename()">确定</button></div>
+        </div>
+    </div>
+    <div id="modal-movecopy" class="modal">
+        <div class="modal-box">
+            <h3 id="movecopy-title">移动到</h3><span class="modal-label">目标路径 (文件夹必须存在)</span><input type="text"
+                id="input-movecopy-dest">
+            <div class="modal-footer"><button onclick="closeModal('movecopy')">取消</button><button class="primary"
+                    onclick="submitMoveCopy()">确定</button></div>
+        </div>
+    </div>
+
+    <div id="modal-topic" class="modal">
+        <div class="modal-box">
+            <h3>发布演示主题</h3>
+            <span class="modal-label">主题</span>
+            <input type="text" id="input-topic">
+            <span class="modal-label">主讲人</span>
+            <input type="text" id="input-speaker">
+            <span class="modal-label">日期</span>
+            <input type="date" id="input-date">
+            <span class="modal-label">时间</span>
+            <input type="time" id="input-time">
+            <div class="modal-footer"><button onclick="closeModal('topic')">取消</button><button class="primary"
+                    onclick="submitTopic()">发布</button></div>
+        </div>
+    </div>
+
+    <!-- 管理员用户管理面板 -->
+    <div id="modal-admin-users" class="modal" style="z-index:9999;">
+        <div class="modal-box" style="max-width:520px; padding:0; overflow:hidden; border-radius:12px;">
+            <div style="background:#9c27b0; color:white; padding:16px 20px; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:16px; font-weight:bold;">👥 用户账号管理</span>
+                <button onclick="closeAdminPanel()" style="background:rgba(255,255,255,0.2); color:white; border:none; border-radius:6px; padding:4px 12px; cursor:pointer;">✕ 关闭</button>
+            </div>
+            <div style="padding:12px 16px; background:#f5f0fb; font-size:13px; color:#6a1b9a; border-bottom:1px solid #e1bee7;">
+                💡 用户可自由注册。您可在此查看所有账号，删除异常账号。每个账号对应一个独立演示房间。
+            </div>
+            <div id="admin-user-list" style="max-height:400px; overflow-y:auto; min-height:100px;">
+                <div style="color:#999;text-align:center;padding:30px;">加载中...</div>
+            </div>
+            <div style="padding:12px 16px; border-top:1px solid #eee; display:flex; justify-content:flex-end; gap:8px;">
+                <button onclick="refreshAdminUserList()" style="padding:6px 16px; border:1px solid #9c27b0; color:#9c27b0; background:white; border-radius:6px; cursor:pointer;">🔄 刷新</button>
+                <button onclick="closeAdminPanel()" style="padding:6px 16px; border:none; background:#9c27b0; color:white; border-radius:6px; cursor:pointer;">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    
+    
+    
+    <!-- Meeting Booking & Invitation Modal -->
+    <div id="invite-modal" class="modal">
+        <div class="modal-content" style="max-width: 900px; padding: 0; overflow: hidden; border-radius: 12px; height: 680px; display: flex; flex-direction: column;">
+            <div class="modal-header" style="background: #409eff; color: white; padding: 15px 20px; margin: 0; display: flex; justify-content: space-between; align-items: center; border-radius: 0; flex-shrink: 0;">
+                <div style="display:flex; align-items:center; gap:15px;">
+                    <span>📅 会议预约与管理</span>
+                    <button id="toggle-calendar-btn" onclick="toggleCalendarView()" style="background:#fff; color:#409eff; border:none; padding:4px 12px; border-radius:15px; cursor:pointer; font-size:12px; font-weight:bold;">📅 切换大日历视图</button>
+                </div>
+                <span class="close-modal" onclick="closeInviteModal()" style="color: white; font-size: 24px; cursor: pointer;">&times;</span>
+            </div>
+            
+            <!-- LIST & FORM LAYOUT -->
+            <div id="booking-layout-row" style="display: flex; flex-direction: row; height: 100%; min-height: 480px; flex: 1;">
+                <!-- Left panel: Meeting List -->
+                <div style="width: 220px; border-right: 1px solid #eee; background: #fff; display: flex; flex-direction: column;">
+                    <div style="padding: 15px; border-bottom: 1px solid #eee; font-weight: bold; background: #fafafa; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 14px; color: #333;">我的日程表</span>
+                        <button onclick="newMeetingForm()" style="background: none; border: none; cursor: pointer; color: #409eff; font-weight:bold; font-size: 18px;" title="新建预约">➕</button>
+                    </div>
+                    <div id="meeting-list" style="flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+                        <!-- List items injected here -->
+                    </div>
+                </div>
+
+                <!-- Middle panel: Settings -->
+                <div style="flex: 1.2; padding: 20px; border-right: 1px solid #eee; background: #fafafa; display: flex; flex-direction: column; position: relative;" id="booking-form-area">
+                    <div id="booking-form-mask" style="display: none; position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(250,250,250,0.5); z-index: 10; cursor: not-allowed;"></div>
+                    <div class="invite-form" style="display: flex; flex-direction: column; gap: 12px; flex: 1;">
+                        <h3 style="margin: 0 0 5px 0; font-size: 16px; color: #333;" id="booking-form-title">新建预约</h3>
+                        <div>
+                            <label style="font-size: 12px; color: #909399; margin-bottom: 4px; display: block;">会议主题</label>
+                            <input type="text" id="invite-topic" placeholder="输入会议主题" style="width: 100%; box-sizing: border-box;">
+                        </div>
+                        <input type="hidden" id="invite-room-slug">
+                        <div>
+                            <label style="font-size: 12px; color: #909399; margin-bottom: 4px; display: block;">会议时间</label>
+                            <div style="display:flex; gap: 5px; align-items:center;">
+                                <input type="datetime-local" id="invite-time" style="flex:1; box-sizing: border-box; padding:6px;" onchange="updateFreqLabels()">
+                                <span style="font-size:12px; color:#999;">至</span>
+                                <input type="time" id="invite-time-end" style="width:110px; box-sizing: border-box; padding:6px;">
+                            </div>
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: #909399; margin-bottom: 4px; display: block;">重复频率</label>
+                            <div style="display:flex; gap: 5px;">
+                                <select id="invite-freq" style="flex:1; padding: 8px; border-radius: 4px; border: 1px solid #ddd;" onchange="handleFreqChange()">
+                                    <option value="once">仅一次</option>
+                                    <option value="daily">每日</option>
+                                    <option value="weekday">每个工作日 (周一至周五)</option>
+                                    <option value="weekly">每周</option>
+                                    <option value="biweekly">每 2 周</option>
+                                    <option value="quadweekly">每 4 周</option>
+                                    <option value="monthly">每月</option>
+                                    <option value="bimonthly">每 2 个月</option>
+                                    <option value="trimonthly">每 3 个月</option>
+                                    <option value="halfyearly">每半年 (6 个月)</option>
+                                </select>
+                                <select id="invite-freq-weekday" style="display:none; width: 100px; padding: 8px; border-radius: 4px; border: 1px solid #ddd;">
+                                    <option value="1">周一</option>
+                                    <option value="2">周二</option>
+                                    <option value="3">周三</option>
+                                    <option value="4">周四</option>
+                                    <option value="5">周五</option>
+                                    <option value="6">周六</option>
+                                    <option value="0">周日</option>
+                                </select>
+                                <select id="invite-freq-monthday" style="display:none; width: 100px; padding: 8px; border-radius: 4px; border: 1px solid #ddd;">
+                                    <script>
+                                        for(let i=1; i<=31; i++) document.write('<option value="'+i+'">'+i+' 日</option>');
+                                    </script>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: #909399; margin-bottom: 4px; display: block;">收件人邮箱 (逗号分隔)</label>
+                            <textarea id="invite-emails" placeholder="user1@example.com, user2@..." style="width: 100%; height: 80px; box-sizing: border-box; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
+                        </div>
+                        <div style="flex: 1;"></div>
+                        <button class="login-btn" id="btn-save-booking" onclick="generateInvitation()" style="width: 100%; margin-top: 10px;">💾 保存预约并发送</button>
+                        <div id="booking-edit-actions" style="display:none; gap:10px; margin-top: 10px;">
+                            <button class="login-btn" onclick="generateInvitation()" style="flex:1; background:#409eff; font-size:13px; padding:8px;">💾 保存更改并通知</button>
+                            <button class="login-btn" onclick="deleteCurrentMeeting()" style="flex:1; background:#f56c6c; font-size:13px; padding:8px;">🗑️ 删除会议并邮件通知取消</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right panel: Result/QR -->
+                <div style="flex: 1; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: white;">
+                    <div id="share-card" class="share-card" style="width: 100%; display: none; text-align: center;">
+                        <input type="hidden" id="current-viewing-meeting-idx" value="-1" />
+                        <div id="qrcode" style="margin-bottom: 15px; display: inline-block; padding: 10px; border: 1px solid #eee; background: white;"></div>
+                        <div style="font-size: 12px; color: #606266; margin-bottom: 10px;">扫码直接加入会议</div>
+                        <textarea id="invite-text" readonly style="width: 100%; height: 150px; font-size: 14px; margin-bottom: 10px; padding: 10px; line-height:1.4; border: 1px solid #ddd; background: #fffcf2; resize: none; border-radius:4px;"></textarea>
+                        <div style="display:flex; gap:5px; margin-bottom: 10px; width:100%;">
+                            <input type="text" id="invite-url-only" readonly style="flex:1; border:1px solid #ddd; padding:8px; font-size:12px; border-radius:4px; background:#f9f9f9; outline:none; color:#409eff;">
+                            <button style="padding:0 12px; background:#409eff; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px; white-space:nowrap" onclick="copyMeetingLink()">复制链接</button>
+                        </div>
+                        <button class="login-btn" style="background:#67c23a; width: 100%; padding: 10px; font-size:14px;" onclick="copyInvitation()">📋 复制会议通知</button>
+                        <button class="login-btn" style="background:#e53935; width: 100%; margin-top: 8px; padding: 10px; font-size:15px; font-weight:bold" id="btn-open-remote" onclick="openRemoteLink()">▶️ 直接点击主持会议</button>
+                        <button class="login-btn" id="btn-edit-meeting" style="background:#e6a23c; color:white; width: 100%; margin-top: 8px; opacity:0.9; font-size:13px; padding:8px" onclick="editCurrentMeeting()">✏️ 编辑此日程 / 更改时间 / 彻底删除</button>
+                    </div>
+                    <div id="booking-placeholder" style="color: #909399; text-align: center; font-size: 14px;">
+                        <div style="font-size: 40px; margin-bottom: 10px;">📋</div>
+                        请填写中间表单预约<br>或在左侧选择已有会议
+                    </div>
+                </div>
+            </div>
+
+            <!-- FULL CALENDAR LAYOUT -->
+            <div id="calendar-layout" style="display: none; flex-direction: column; height: 100%; flex: 1; padding: 20px; background: white;">
+                <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <button onclick="calPrevMonth()" style="background:#fff; border:1px solid #ddd; padding:6px 15px; border-radius:4px; cursor:pointer;">◀ 上个月</button>
+                    <div id="calendar-month-label" style="font-size: 20px; font-weight: bold; color: #333;">2026 年 3 月</div>
+                    <button onclick="calNextMonth()" style="background:#fff; border:1px solid #ddd; padding:6px 15px; border-radius:4px; cursor:pointer;">下个月 ▶</button>
+                </div>
+                <!-- Grid Container -->
+                <div id="calendar-grid-container" style="flex: 1; border: 1px solid #ebeef5; border-radius: 4px; overflow: hidden;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="scripts/index-app.js"></script>
+
+</body>
+
+</html>

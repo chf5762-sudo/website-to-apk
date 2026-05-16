@@ -1,0 +1,18 @@
+.git/
+node_modules/
+scripts/
+assets/
+skills/
+agent/
+*.txt
+*.png
+*.jpg
+*.md
+README.md
+CLAUDE.md
+git_log.txt
+git_log_utf8.txt
+# 排除前端 HTML，除非 Worker 显式引用
+index.html
+remote.html
+agora-call.js
