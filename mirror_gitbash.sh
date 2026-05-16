@@ -1,3 +1,9 @@
+# 1. ???????????
+LIB_PATH=$(find /c/Users/Alex/Desktop/project/HBuilder_TV_App -name "mqtt.min.js" | head -n 1)
+cp "$LIB_PATH" "app/src/main/assets/www/scripts/mqtt.min.js"
+
+# 2. ???? HTML (?? Heredoc ??????)
+cat <<EOF > app/src/main/assets/www/index_v3s.html
 <!DOCTYPE html>
 <html>
 <head>
@@ -66,3 +72,4 @@
     </script>
 </body>
 </html>
+EOF
