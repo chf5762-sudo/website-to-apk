@@ -44,7 +44,7 @@
             log('INIT', 'System Start (Full Features)');
             
             // 1. ????
-            var room = (new RegExp("[?&]room=([^var room = (new RegExp]+)").exec(location.search) || [])[1] || "123"; // ?????? 123("[?&]room=([^&]+)").exec(location.search) || [])[1];
+            var room = (new RegExp("[?&]room=([^var room = (new RegExp]+)").exec(location.search) || [])[1] || "admin"; // ?????? 123("[?&]room=([^&]+)").exec(location.search) || [])[1];
             var finalTopic = BASE_TOPIC;
             if (room) {
                 log('ROOM', 'Detected Room ID: <span class="data">' + room + '</span>');
