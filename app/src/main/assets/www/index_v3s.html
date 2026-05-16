@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>TV App Debug</title>
+    <script src="scripts/mqtt.min.js"></script>
+    <style>
+        body { background: #000; color: #fff; margin: 0; padding: 0; overflow: hidden; }
+        #log-panel {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            color: #0f0;
+            font-size: 16px;
+            padding: 10px;
+            overflow-y: auto;
+            z-index: 9999;
+            border: 2px solid #0f0;
+        }
+        .status-dot {
+            position: fixed; top: 10px; right: 10px;
+            width: 20px; height: 20px; border-radius: 50%;
+            background: red; z-index: 10000;
+        }
+    </style>
+</head>
+<body>
+    <div id="log-panel"></div>
+    <div id="mqtt-dot" class="status-dot"></div>
+
+    <script>
+        function tvLog(msg, type) {
+            var p = document.getElementById('log-panel');
+            var d = document.createElement('div');
+            d.style.color = (type === 'error') ? 'red' : (type === 'success' ? '#0f0' : '#fff');
+            d.innerHTML = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+            p.appendChild(d);
+            p.scrollTop = p.scrollHeight;
+        }
+
+        var MQTT_URL = 'ws://broker.emqx.io:8083/mqtt';
+        var TOPIC = '3eb42d69d8b226abe22024d648975f8a/PPT001';
+        var CLIENT_ID = 'TV_' + Math.floor(Math.random()*10000);
+
+        window.onload = function() {
+            tvLog('=== TV APP START (V4_CLEAN) ===');
+            
+            if (typeof mqtt === 'undefined') {
+                tvLog('ERROR: MQTT Library NOT FOUND!', 'error');
+                return;
+            }
+
+            tvLog('Connecting to: ' + MQTT_URL);
+            try {
+                var client = mqtt.connect(MQTT_URL, {
+                    clientId: CLIENT_ID,
+                    protocolId: 'MQIsdp',
+                    protocolVersion: 3,
+                    reconnectPeriod: 5000
+                });
+
+                client.on('connect', function() {
+                    tvLog('CONNECTED TO BROKER!', 'success');
+                    document.getElementById('mqtt-dot').style.background = 'green';
+                    client.subscribe(TOPIC);
+                    tvLog('Subscribed to: ' + TOPIC);
+                });
+
+                client.on('message', function(t, m) {
+                    tvLog('MSG: ' + m.toString());
+                });
+
+                client.on('error', function(e) {
+                    tvLog('MQTT ERR: ' + e.message, 'error');
+                });
+            } catch (e) {
+                tvLog('CRASH: ' + e.message, 'error');
+            }
+        };
+    </script>
+</body>
+</html>
