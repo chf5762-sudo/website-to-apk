@@ -4,18 +4,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PPT 远程显示端</title>
+    <title>PPT 远程显示�?/title>
     <link rel="manifest" href="manifest-remote.json">
     <meta name="theme-color" content="#1a1a2e">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="观众版">
-    <script src="https://unpkg.com/mqtt@2.18.8/dist/mqtt.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.5.207/pdf.min.js"></script>
+    <meta name="apple-mobile-web-app-title" content="观众�?>
+    <script src="https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.5.207/pdf.worker.min.js';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     </script>
     <style>
         * {
@@ -32,7 +32,7 @@
             position: relative;
         }
 
-        /* 全局现代滚动条样式（深色适用） */
+        /* 全局现代滚动条样式（深色适用�?*/
         ::-webkit-scrollbar {
             width: 10px;
             height: 10px;
@@ -55,7 +55,7 @@
             background-clip: content-box;
         }
 
-        /* 顶部状态栏 - 包含页码和全屏控制 */
+        /* 顶部状态栏 - 包含页码和全屏控�?*/
         .header {
             position: fixed;
             top: 40px;
@@ -64,11 +64,12 @@
             display: flex;
             gap: 10px;
             align-items: center;
-            background: rgba(0, 0, 0, 0.85);
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
             padding: 5px 10px;
             border-radius: 8px;
-            /* 正方形/稍圆角风格 */
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            /* 正方�?稍圆角风�?*/
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         /* 页码信息 */
@@ -86,7 +87,7 @@
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 4px;
-            /* 正方形风格 */
+            /* 正方形风�?*/
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -95,7 +96,7 @@
             color: white;
             transition: all 0.3s;
             position: relative;
-            /* 为了定位状态原点 */
+            /* 为了定位状态原�?*/
         }
 
         .btn-fullscreen:hover {
@@ -116,14 +117,14 @@
             transition: all 0.3s;
         }
 
-        /* 已连接 - 绿色 */
+        /* 已连�?- 绿色 */
         .status-indicator.connected {
             background: #4caf50;
             box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.3);
             animation: pulse 2s infinite;
         }
 
-        /* 连接中 - 黄色闪烁 */
+        /* 连接�?- 黄色闪烁 */
         .status-indicator.connecting {
             background: #ffc107;
             animation: blink 1s infinite;
@@ -216,7 +217,7 @@
             position: absolute;
             top: 30px;
             right: 30px;
-            background: rgba(40, 40, 40, 0.95);
+            background: rgba(40, 40, 40, 0.7);
             color: #aaa;
             padding: 6px 16px;
             border-radius: 20px;
@@ -225,6 +226,8 @@
             z-index: 300;
             display: none;
             pointer-events: none;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
         }
 
         #agentScreenLayer .screen-text {
@@ -254,23 +257,18 @@
             display: block;
         }
 
-        #pdfCanvas, #pdfCanvasNext {
-            position: absolute;
+        #pdfCanvas {
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
-            display: none;
-            transition: opacity 0.2s;
         }
 
         /* 图片显示样式 */
-        #imageDisplay, #imageDisplayNext {
-            position: absolute;
+        #imageDisplay {
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
             display: none;
-            transition: opacity 0.2s;
         }
 
         /* 视频显示样式 */
@@ -336,23 +334,18 @@
             opacity: 0.5;
         }
 
-        /* 页码信息已经被并入 header 中，移除悬浮独立的样式，仅作微调如果需要 */
+        /* 页码信息已经被并�?header 中，移除悬浮独立的样式，仅作微调如果需�?*/
 
-        /* 控制按钮容器 - 左下角悬浮 */
+        /* 控制按钮容器 - 左下角悬�?*/
         .controls-container {
             position: fixed;
             bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
+            left: 30px;
             display: none;
             /* 默认隐藏，除非主讲人允许 */
             flex-direction: column;
             gap: 15px;
-            z-index: 2147483645;
-            background: rgba(10, 10, 10, 0.95);
-            padding: 10px 20px;
-            border-radius: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            z-index: 300;
         }
 
         /* 主控制按钮组 */
@@ -366,6 +359,7 @@
             width: 60px;
             height: 60px;
             background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
             cursor: pointer;
@@ -399,10 +393,11 @@
             display: flex;
             gap: 10px;
             align-items: center;
-            background: rgba(20, 20, 20, 0.95);
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(20px);
             padding: 12px 16px;
             border-radius: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             opacity: 0;
             transform: translateY(20px);
             transition: all 0.3s;
@@ -456,7 +451,7 @@
             cursor: not-allowed;
         }
 
-        /* 响应式设计 */
+        /* 响应式设�?*/
         @media (max-width: 768px) {
             .controls-container {
                 bottom: 20px;
@@ -479,18 +474,22 @@
             display: none;
         }
 
-        /* ESC 退出提示 */
+        /* ESC 退出提�?*/
         .esc-hint {
             position: fixed;
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
             background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
             color: white;
             padding: 8px 16px;
             border-radius: 20px;
             font-size: 14px;
+            border-radius: 20px;
+            font-size: 14px;
             z-index: 400;
+            opacity: 0;
             opacity: 0;
             animation: fadeInOut 3s ease-in-out;
         }
@@ -508,12 +507,12 @@
             }
         }
 
-        /* 全屏时显示提示 */
+        /* 全屏时显示提�?*/
         body:fullscreen .esc-hint {
             animation: fadeInOut 3s ease-in-out;
         }
 
-        /* 主题信息显示层 - 透明磨玻璃灰色风格 */
+        /* 主题信息显示�?- 透明磨玻璃灰色风�?*/
         .tech-overlay {
             position: fixed;
             top: 0;
@@ -521,6 +520,8 @@
             width: 100%;
             height: 100%;
             background: rgba(10, 10, 15, 0.55);
+            backdrop-filter: blur(40px) saturate(0.7);
+            -webkit-backdrop-filter: blur(40px) saturate(0.7);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -528,13 +529,13 @@
         }
 
         .tech-card {
-            background: rgba(20, 20, 20, 0.98);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 24px;
             padding: 60px 80px;
             max-width: 800px;
             text-align: center;
-            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8);
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
         }
 
         .tech-card h1 {
@@ -773,7 +774,7 @@
         }
     </style>
 
-    <!-- Agora 独立音视频模块 -->
+    <!-- Agora 独立音视频模�?-->
     <link rel="stylesheet" href="agora-call.css">
     <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>
     <script src="agora-call.js"></script>
@@ -787,17 +788,17 @@
     <div id="nickname-modal">
         <div class="nickname-box">
             <div class="nickname-title">👋 欢迎加入会议</div>
-            <div class="nickname-sub">输入您的昵称，或直接跳过由系统分配编号</div>
-            <input id="nickname-input" type="text" placeholder="您的昵称（可不填）" maxlength="16"
+            <div class="nickname-sub">输入您的昵称，或直接跳过由系统分配编�?/div>
+            <input id="nickname-input" type="text" placeholder="您的昵称（可不填�? maxlength="16"
                 onkeydown="if(event.key==='Enter') confirmNickname()" autocomplete="off">
             <div class="nickname-btns">
                 <button class="btn-enter" onclick="confirmNickname()">入場</button>
-                <button class="btn-skip" onclick="skipNickname()">-- 跳过，使用随机编号 --</button>
+                <button class="btn-skip" onclick="skipNickname()">-- 跳过，使用随机编�?--</button>
             </div>
         </div>
     </div>
 
-    <!-- 互动讨论侧边栏 -->
+    <!-- 互动讨论侧边�?-->
     <div id="discussion-sidebar">
         <div class="discussion-content">
             <div class="discussion-header"
@@ -846,17 +847,16 @@
 
     <div class="preview-container">
         <div class="preview-screen" id="previewScreen">
-            <canvas id="pdfCanvas"></canvas>
-            <canvas id="pdfCanvasNext"></canvas>
-            <img id="imageDisplay">
-            <img id="imageDisplayNext">
-            <video id="videoDisplay" controls autoplay></video>
-            
-            <!-- 涂鸦层 -->
-            <canvas id="drawCanvas" style="position:absolute; top:0; left:0; pointer-events:none; display:none; z-index:2147483645;"></canvas>
+            <canvas id="pdfCanvas" style="max-width: 100%; max-height: 100%; display: none;"></canvas>
+            <!-- 涂鸦�?-->
+            <canvas id="drawCanvas"
+                style="position:absolute; top:0; left:0; pointer-events:none; display:none; z-index:2147483645;"></canvas>
 
+            <img id="imageDisplay" style="max-width: 100%; max-height: 100%; object-fit: contain; display: none;" />
+            <video id="videoDisplay" style="max-width: 100%; max-height: 100%; object-fit: contain; display: none;"
+                controls autoplay></video>
             <div id="agentScreenLayer"></div>
-            <div id="screenIdleBadge" class="screen-idle-badge">系统闲置中</div>
+            <div id="screenIdleBadge" class="screen-idle-badge">系统闲置�?/div>
 
             <div id="placeholder">
                 <div class="pulse-ring-outer"></div>
@@ -870,8 +870,9 @@
                 <div class="placeholder-title" id="welcome-title">SYSTEM ONLINE</div>
                 <div class="placeholder-sub">WAITING FOR SIGNAL</div>
             </div>
-        </div>
-    </div>
+
+            <!-- 页码信息已移�?header �?-->
+
             <div id="video-prompt" class="tech-overlay" style="display:none;">
                 <div class="tech-card">
                     <div style="font-size:50px; color:var(--neon-cyan);">▶️</div>
@@ -910,7 +911,7 @@
                             onmouseout="this.style.background='rgba(255,255,255,0.15)'; this.style.transform='translateY(0)';">
                             📋 复制会议链接
                         </button>
-                        <div style="color:rgba(255,255,255,0.4);">扫描二维码加入会议</div>
+                        <div style="color:rgba(255,255,255,0.4);">扫描二维码加入会�?/div>
                     </div>
                 </div>
             </div>
@@ -919,14 +920,14 @@
         <div class="controls-container">
             <div class="controls-main">
                 <button class="control-btn btn-prev" onclick="sendCommand('prev', true)" id="btnPrev" disabled
-                    title="上一页">
+                    title="上一�?>
                     ⬅️
                 </button>
                 <button class="control-btn btn-next" onclick="sendCommand('next', true)" id="btnNext" disabled
-                    title="下一页">
+                    title="下一�?>
                     ➡️
                 </button>
-                <button class="control-btn" onclick="toggleFullscreen()" title="全屏">⛶</button>
+                <button class="control-btn" onclick="toggleFullscreen()" title="全屏">�?/button>
             </div>
             <div class="goto-container" style="display:none;">
                 <input type="number" class="goto-input" id="gotoInput" placeholder="页码" min="1" disabled>
@@ -936,15 +937,35 @@
 
         <script>
             window.BEMFA_KEY = '3eb42d69d8b226abe22024d648975f8a';
-            window.MQTT_URL = 'ws://broker.emqx.io:8083/mqtt';
+            window.MQTT_URL = 'wss://broker.emqx.io:8084/mqtt';
             window.CONTROL_TOPIC = window.BEMFA_KEY + '/PPT001';
             window.STATUS_TOPIC = window.BEMFA_KEY + '/PPT002';
             let BEMFA_KEY = window.BEMFA_KEY;
             let MQTT_URL = window.MQTT_URL;
             let CONTROL_TOPIC = window.CONTROL_TOPIC;
             let STATUS_TOPIC = window.STATUS_TOPIC;
+            // In Android WebView (file://android_asset), relative "/api/..." becomes file:///api/...
+            // Force API requests to an HTTP(S) origin when running from local assets.
+            const API_ORIGIN = 'https://easyshow.zeabur.app';
+            (function patchFetchForAssetMode() {
+                const nativeFetch = window.fetch ? window.fetch.bind(window) : null;
+                if (!nativeFetch) return;
+                window.fetch = function (input, init) {
+                    let url = (typeof input === 'string') ? input : (input && input.url ? input.url : '');
+                    const isAssetMode = window.location.protocol === 'file:';
+                    if (isAssetMode && typeof url === 'string' && url.indexOf('/api/') === 0) {
+                        url = API_ORIGIN + url;
+                        if (typeof input === 'string') {
+                            input = url;
+                        } else if (input instanceof Request) {
+                            input = new Request(url, input);
+                        }
+                    }
+                    return nativeFetch(input, init);
+                };
+            })();
 
-            // 每个标签页独立 Session ID（避免同浏览器多标签共用身份）
+            // 每个标签页独�?Session ID（避免同浏览器多标签共用身份�?
             if (!sessionStorage.getItem('sync_viewer_id')) {
                 sessionStorage.setItem('sync_viewer_id', 'remote_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5));
             }
@@ -973,7 +994,7 @@
             function toggleFullscreen() {
                 console.log('🚀 [Fullscreen] 尝试切换全屏...');
 
-                // 视觉反馈：点击瞬间变红边，确认点击到了
+                // 视觉反馈：点击瞬间变红边，确认点击到�?
                 const btn = document.querySelector('.btn-fullscreen');
                 if (btn) {
                     btn.style.outline = '3px solid red';
@@ -981,7 +1002,7 @@
                 }
 
                 if (!document.fullscreenEnabled && !document.webkitFullscreenEnabled && !document.mozFullScreenEnabled && !document.msFullscreenEnabled) {
-                    alert('当前浏览器或环境禁用了全屏功能，请检查权限。');
+                    alert('当前浏览器或环境禁用了全屏功能，请检查权限�?);
                     return;
                 }
 
@@ -996,12 +1017,12 @@
                             const p = request.call(elem);
                             if (p && p.catch) {
                                 p.catch(err => {
-                                    console.error('❌ [Fullscreen] 拦截:', err);
-                                    alert('全屏请求被拦截: ' + err.message + '\n\n提示：浏览器通常要求在页面上先有点任何位置的操作，然后再点全屏。');
+                                    console.error('�?[Fullscreen] 拦截:', err);
+                                    alert('全屏请求被拦�? ' + err.message + '\n\n提示：浏览器通常要求在页面上先有点任何位置的操作，然后再点全屏�?);
                                 });
                             }
                         } else {
-                            alert('当前浏览器版本过低，不支持全屏功能。');
+                            alert('当前浏览器版本过低，不支持全屏功能�?);
                         }
                     } else {
                         // 退出逻辑
@@ -1084,13 +1105,6 @@
                     html = `<iframe class="screen-frame" src="${src}"></iframe>`;
                 }
 
-                const contentHash = state.type + '|' + state.url + '|' + (state.text || '') + '|' + (state.content || '');
-                if (layer.getAttribute('data-content-hash') === contentHash) {
-                    console.log('⏭️ AgentScreen 内容未变，跳过更新');
-                    return;
-                }
-                layer.setAttribute('data-content-hash', contentHash);
-
                 layer.innerHTML = html;
                 layer.style.display = html ? 'flex' : 'none';
                 lastRenderedScreenState = state;
@@ -1144,10 +1158,10 @@
                     if (ts === lastScreenStateTs && state) return;
 
                     // 最新时间戳覆盖优先策略
-                    // 如果存在有效的 Push，并且它的时间戳晚于最后一次 PPT 活跃操作的时间戳
+                    // 如果存在有效�?Push，并且它的时间戳晚于最后一�?PPT 活跃操作的时间戳
                     if (ts > 0 && ts !== lastScreenStateTs) {
                         const pptTs = window._pptLastTs || 0;
-                        // 允许 2000ms 的时钟误差
+                        // 允许 2000ms 的时钟误�?
                         if (ts > pptTs - 2000) {
                             console.log('🔄 [Priority] Push 时间戳更新，主动解除 PPT 锁定。Push:', ts, 'PPT:', pptTs);
                             manualDisplayPriority = false;
@@ -1229,10 +1243,10 @@
 
 
 
-            // 页面加载后自动连接
+            // 页面加载后自动连�?
             window.addEventListener('load', () => {
                 const params = new URLSearchParams(window.location.search);
-                // 兼容 ?room=xxx 和 ?u=xxx 两种链接格式
+                // 兼容 ?room=xxx �??u=xxx 两种链接格式
                 const room = params.get('room') || params.get('u');
                 const suffix = buildTopicSuffix(room);
                 CONTROL_TOPIC = BEMFA_KEY + '/PPT001' + suffix;
@@ -1243,18 +1257,18 @@
                 // Force stable Chinese labels to avoid any source-file encoding pollution.
                 try {
                     const headerLabel = document.querySelector('.discussion-header span span');
-                    if (headerLabel) headerLabel.textContent = '讨论屏';
+                    if (headerLabel) headerLabel.textContent = '讨论�?;
                     const onlineBadge = document.getElementById('online-count-badge');
-                    if (onlineBadge && !onlineBadge.textContent.trim()) onlineBadge.textContent = '1 人';
+                    if (onlineBadge && !onlineBadge.textContent.trim()) onlineBadge.textContent = '1 �?;
                     const fileBtn = document.querySelector('.discussion-input-area button[type="button"]');
                     if (fileBtn) {
-                        fileBtn.title = '发送文件';
+                        fileBtn.title = '发送文�?;
                         fileBtn.textContent = '📎';
                     }
                     const msgInput = document.getElementById('discussion-input');
                     if (msgInput) msgInput.placeholder = '输入消息...';
                     const sendBtn = document.querySelector('.discussion-input-area button[onclick="sendChatMessage()"]');
-                    if (sendBtn) sendBtn.textContent = '发送';
+                    if (sendBtn) sendBtn.textContent = '发�?;
                     const chatFab = document.getElementById('chat-fab');
                     if (chatFab) {
                         chatFab.title = '聊天';
@@ -1282,18 +1296,14 @@
                 document.getElementById('welcome-title').textContent = room ? `HELLO, ${displayName.toUpperCase()}` : 'SYSTEM ONLINE';
 
                 // 显示昵称弹窗，让观众选择名字后再连接
-                // (connectMQTT 由 confirmNickname / skipNickname 触发)
-                if (params.get('mode') === 'tv') {
-                    console.log('📺 [TV Mode] Auto skipping nickname modal...');
-                    skipNickname();
-                } else {
-                    document.getElementById('nickname-modal').classList.remove('hidden');
-                    // 自动聚焦昵称输入框
-                    setTimeout(() => { const el = document.getElementById('nickname-input'); if (el) el.focus(); }, 100);
-                }
+                // (connectMQTT �?confirmNickname / skipNickname 触发)
+                window.sessionUsername = room || 'admin';
+                const nicknameModal = document.getElementById('nickname-modal');
+                if (nicknameModal) nicknameModal.classList.add('hidden');
+                connectMQTT();
             });
 
-            // --- 全局安全防护 (显示端强制开启) ---
+            // --- 全局安全防护 (显示端强制开�? ---
             document.addEventListener('contextmenu', e => e.preventDefault());
             document.addEventListener('keydown', e => {
                 // 禁止 F12, Ctrl+Shift+I/J/C, Ctrl+U, Ctrl+S
@@ -1325,8 +1335,8 @@
             }
 
             function skipNickname() {
-                // 随机可爱动物名称 + 4位字母数字
-                const animals = ["百灵鸟", "小海豚", "胖达", "小白兔", "小柯基", "小花猫", "小仓鼠", "小企鹅", "长颈鹿", "小松鼠", "小刺猬", "小考拉", "小狐狸", "小斑马", "小浣熊"];
+                // 随机可爱动物名称 + 4位字母数�?
+                const animals = ["百灵�?, "小海�?, "胖达", "小白�?, "小柯�?, "小花�?, "小仓�?, "小企�?, "长颈�?, "小松�?, "小刺�?, "小考拉", "小狐�?, "小斑�?, "小浣�?];
                 const animal = animals[Math.floor(Math.random() * animals.length)];
                 const rand = Math.random().toString(36).substr(2, 4).toUpperCase();
                 window.sessionUsername = animal + '_' + rand;
@@ -1479,44 +1489,22 @@
                 const arrow = document.getElementById('user-list-arrow');
                 if (list.style.display === 'block') {
                     list.style.display = 'none';
-                    arrow.textContent = '▼';
+                    arrow.textContent = '�?;
                 } else {
                     list.style.display = 'block';
-                    arrow.textContent = '▲';
+                    arrow.textContent = '�?;
                     renderUserList();
                 }
             }
 
             function closePresentation() {
-                console.log('🚫 关闭演示模式');
-                
-                // 清理所有相关计时器
-                if (window._showPlaceholderTimeout) {
-                    clearTimeout(window._showPlaceholderTimeout);
-                    window._showPlaceholderTimeout = null;
-                }
-
-                pdfDoc = null;
-                currentFilePath = null;
-                currentPage = 0;
-                totalPages = 0;
-                _mediaCleared = false;
-                
-                // 停止任何正在进行的渲染任务
-                if (window._viewerActiveRenderTask) {
-                    try { window._viewerActiveRenderTask.cancel(); } catch(e){}
-                    window._viewerActiveRenderTask = null;
-                }
-
-                // 强制隐藏所有层
-                ['pdfCanvas', 'pdfCanvasNext', 'imageDisplay', 'imageDisplayNext', 'videoDisplay', 'officeIframe', 'drawCanvas', 'placeholder', 'video-prompt'].forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) el.style.display = 'none';
-                });
-                
+                console.log('🎬 演示已结束，返回欢迎界面');
+                const canvas = document.getElementById('pdfCanvas');
+                if (canvas) canvas.style.display = 'none';
+                const drawCanvas = document.getElementById('drawCanvas');
+                if (drawCanvas) drawCanvas.style.display = 'none';
                 const imgDisplay = document.getElementById('imageDisplay');
                 if (imgDisplay) { imgDisplay.style.display = 'none'; imgDisplay.src = ''; }
-                
                 const videoDisplay = document.getElementById('videoDisplay');
                 if (videoDisplay) {
                     try { videoDisplay.pause(); } catch (e) { }
@@ -1533,10 +1521,23 @@
                     officeIframe.style.display = 'none';
                     officeIframe.src = '';
                 }
+                const videoPrompt = document.getElementById('video-prompt');
+                if (videoPrompt) videoPrompt.style.display = 'none';
+                const placeholder = document.getElementById('placeholder');
+                if (placeholder) placeholder.style.display = 'flex';
+                const infoScreen = document.getElementById('info-screen');
+                if (infoScreen) infoScreen.style.display = 'none';
+                const pageInfo = document.getElementById('pageInfo');
+                if (pageInfo) pageInfo.style.display = 'none';
 
+                currentFilePath = null;
+                pdfDoc = null;
+                currentPage = 0;
+                totalPages = 0;
+                _mediaCleared = false; // 重置，下次演示时重新清理媒体
                 updatePageInfo();
                 clearRemoteDrawing();
-                // 演示结束，恢复 Agora 控制面板到默认位置
+                // 演示结束，恢�?Agora 控制面板到默认位�?
                 if (typeof window.agoraSetCtrlPanelBottom === 'function') {
                     window.agoraSetCtrlPanelBottom(window._agoraCtrlBaseBottom || 90);
                 } else {
@@ -1552,22 +1553,22 @@
                 let html = '';
                 const seenNames = new Set();
 
-                // 1. 演示者 (Master)
+                // 1. 演示�?(Master)
                 const master = Array.from(onlineUsers.values()).find(u => u.role === 'master');
-                const masterName = master ? master.name : (window.isPresenterOnline ? '演示者' : null);
+                const masterName = master ? master.name : (window.isPresenterOnline ? '演示�? : null);
 
                 if (masterName) {
                     seenNames.add(masterName);
                     html += `
                         <div class="user-item">
                             <div class="user-avatar" style="background:${stringToColor(masterName)}">${masterName.charAt(0)}</div>
-                            <div class="user-name">${masterName} <span style="font-size:10px; color:#c0dfff;">(主持人)</span></div>
+                            <div class="user-name">${masterName} <span style="font-size:10px; color:#c0dfff;">(主持�?</span></div>
                             <div class="user-status-dot"></div>
                         </div>
                     `;
                 }
 
-                // 2. 本人 (观众端加上自己)
+                // 2. 本人 (观众端加上自�?
                 const myName = window.sessionUsername || '观众';
                 if (!seenNames.has(myName)) {
                     seenNames.add(myName);
@@ -1611,7 +1612,7 @@
                 wrapper.className = `message-with-avatar ${isMe ? 'me' : 'others'}`;
 
                 const bgColor = stringToColor(msg.sender || '观众');
-                const avatarChar = (msg.sender || '观').charAt(0);
+                const avatarChar = (msg.sender || '�?).charAt(0);
 
                 // Format timestamp
                 const tsMs = msg.timestamp || Date.now();
@@ -1651,7 +1652,7 @@
             function updateOnlineStatusUI() {
                 const badge = document.getElementById('online-count-badge');
 
-                // 计算在线人数：演示者(master)单独算一个，其余每个 sessionId 算一个
+                // 计算在线人数：演示�?master)单独算一个，其余每个 sessionId 算一�?
                 let totalCount = 0;
                 let hasMaster = false;
                 let hasSelf = false;
@@ -1660,12 +1661,12 @@
                     if (u.name === window.sessionUsername) hasSelf = true;
                     totalCount++;
                 });
-                // 如果 master 未通过 MQTT 上报但已知在线，则额外补一个
+                // 如果 master 未通过 MQTT 上报但已知在线，则额外补一�?
                 if (!hasMaster && window.isPresenterOnline) totalCount++;
                 // 确保本人也被统计进去
                 if (!hasSelf && window.sessionUsername) totalCount++;
 
-                if (badge) badge.innerText = totalCount + ' 人';
+                if (badge) badge.innerText = totalCount + ' �?;
                 renderUserList();
             }
 
@@ -1699,14 +1700,14 @@
                     mqttClient.end();
                 }
 
-                updateStatus('连接中...', false);
+                updateStatus('连接�?..', false);
 
                 try {
-                    // 只要具备随机 SESSION_ID 充当了身份，在 EMQX 上多端独立
+                    // 只要具备随机 SESSION_ID 充当了身份，�?EMQX 上多端独�?
                     const urlParams = new URLSearchParams(window.location.search);
                     let sessionUsername = window.sessionUsername || urlParams.get('u') || urlParams.get('room');
                     if (!sessionUsername) {
-                        const animals = ["百灵鸟", "小海豚", "胖达", "小白兔", "小柯基"];
+                        const animals = ["百灵�?, "小海�?, "胖达", "小白�?, "小柯�?];
                         const animal = animals[Math.floor(Math.random() * animals.length)];
                         const rand = Math.random().toString(36).substr(2, 4).toUpperCase();
                         sessionUsername = animal + '_' + rand;
@@ -1724,18 +1725,13 @@
                     });
 
                     mqttClient.on('connect', () => {
-                        updateStatus('已连接', true);
+                        updateStatus('已连�?, true);
                         startScreenStatePolling();
                         mqttClient.subscribe(STATUS_TOPIC, (err) => {
                             if (!err) {
                                 isConnected = true;
                                 enableControls(viewerControlEnabled);
                                 requestStatus();
-                                
-                                // Set PDF.js worker explicitly for better compatibility
-                                if (window.pdfjsLib) {
-                                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.5.207/pdf.worker.min.js';
-                                }
 
                                 // 首先请求分配一个唯一编号
                                 console.log('📢 正在请求席位编号...');
@@ -1744,16 +1740,16 @@
                                     sessionId: SESSION_ID
                                 }), { qos: 0 });
 
-                                // 如果 1.5 秒后没人分配（比如展示者不在线），则自行抢坑
+                                // 如果 1.5 秒后没人分配（比如展示者不在线），则自行抢�?
                                 setTimeout(() => {
                                     if (!isIdAssigned) {
-                                        console.log('⚠️ 未收到编号分配，开始自行计算编号...');
+                                        console.log('⚠️ 未收到编号分配，开始自行计算编�?..');
                                         const usedIds = new Set();
                                         onlineUsers.forEach(u => {
                                             const m = u.name.match(/_(\d+)$/);
                                             if (m) usedIds.add(parseInt(m[1]));
                                         });
-                                        let assigned = 2; // 自行抢坑从 02 开始
+                                        let assigned = 2; // 自行抢坑�?02 开�?
                                         while (usedIds.has(assigned)) assigned++;
                                         const assignedStr = assigned < 10 ? '0' + assigned : '' + assigned;
                                         completeIdAssignment(assignedStr);
@@ -1768,13 +1764,13 @@
                     function completeIdAssignment(idStr) {
                         if (isIdAssigned) return;
                         isIdAssigned = true;
-                        // 不再强制修改用户的昵称
-                        console.log('✅ 席位确认:', window.sessionUsername);
+                        // 不再强制修改用户的昵�?
+                        console.log('�?席位确认:', window.sessionUsername);
                     }
 
                     // --- 权限管理逻辑 ---
                     window.isPresenterOnline = false;
-                    window.isViewerSharingAllowed = true; // 默认允许，直到演示者下达禁令
+                    window.isViewerSharingAllowed = true; // 默认允许，直到演示者下达禁�?
                     window.isViewerMicAllowed = true;
                     window.isViewerVideoAllowed = true;
 
@@ -1786,10 +1782,10 @@
                             window.agoraModule.setMediaPermission(window.isViewerMicAllowed, window.isViewerVideoAllowed);
                         }
                     }
-                    // 定期清理主控在线状态（心跳超时）
+                    // 定期清理主控在线状态（心跳超时�?
                     setInterval(() => {
                         window.isPresenterOnline = false;
-                        // 检查在线列表中是否有 master
+                        // 检查在线列表中是否�?master
                         for (let user of onlineUsers.values()) {
                             if (user.role === 'master') {
                                 window.isPresenterOnline = true;
@@ -1856,13 +1852,13 @@
                                     const stage = document.getElementById('agora-video-stage');
                                     if (stage) stage.style.display = 'flex';
 
-                                    // 【互斥逻辑】正在演示PPT时开启了屏幕分享，自动关闭/隐藏PPT
+                                    // 【互斥逻辑】正在演示PPT时开启了屏幕分享，自动关�?隐藏PPT
                                     if (typeof closePresentation === 'function') {
                                         // 停止并清理当前所有的显示（重置为无文档状态）
                                         closePresentation();
                                     }
 
-                                    // 额外确保隐藏所有显示画布
+                                    // 额外确保隐藏所有显示画�?
                                     const pdfCanvas = document.getElementById('pdfCanvas');
                                     if (pdfCanvas) pdfCanvas.style.display = 'none';
                                     const imageDisplay = document.getElementById('imageDisplay');
@@ -1881,11 +1877,11 @@
 
                                 if (status.action === 'screen_share_stopped') {
                                     setManualDisplayPriority(false);
-                                    console.log('屏幕共享已结束，请求恢复演示状态...');
+                                    console.log('屏幕共享已结束，请求恢复演示状�?..');
                                     if (window.agoraModule && typeof window.agoraModule.exitPresenterPreviewMode === 'function') {
                                         window.agoraModule.exitPresenterPreviewMode();
                                     }
-                                    requestStatus(); // 立即拉取主讲当前状态
+                                    requestStatus(); // 立即拉取主讲当前状�?
                                     return;
                                 }
 
@@ -1893,7 +1889,7 @@
                                 // Ultra-light page change: {a:'pg', p:N, t:T}
                                 if (status.a === 'pg') {
                                     window._pptLastTs = status.t || Date.now();
-                                    setManualDisplayPriority(true); // 活跃翻页，强制切回 PPT
+                                    setManualDisplayPriority(true); // 活跃翻页，强制切�?PPT
                                     if (status.p !== undefined && (currentPage !== status.p || totalPages !== status.t)) {
                                         currentPage = status.p;
                                         totalPages = status.t;
@@ -1924,7 +1920,7 @@
                                 const statusViewerVideo = status.vv !== undefined ? !!status.vv : status.viewerVideoAllowed;
 
                                 if (statusUrl && statusUrl !== currentFilePath) {
-                                    // 仅在 PPT 时间戳更新时抢占焦点，防止覆盖正在展示的最新 Push
+                                    // 仅在 PPT 时间戳更新时抢占焦点，防止覆盖正在展示的最�?Push
                                     if (!window._pptLastTs || lastScreenStateTs < window._pptLastTs) {
                                         setManualDisplayPriority(true);
                                     }
@@ -1937,7 +1933,7 @@
 
                                 if (statusPage !== undefined && statusTotal !== undefined) {
                                     if (currentPage !== statusPage || totalPages !== statusTotal) {
-                                        // 发现内容/页码变化，代表这是活跃状态，抢占优先级
+                                        // 发现内容/页码变化，代表这是活跃状态，抢占优先�?
                                         if (status.t) window._pptLastTs = status.t;
                                         setManualDisplayPriority(true);
 
@@ -1981,7 +1977,7 @@
                                     setManualDisplayPriority(true);
                                     console.log('📥 收到主题信息:', status);
                                     document.getElementById('info-topic').textContent = status.topic;
-                                    document.getElementById('info-speaker').textContent = '主讲人: ' + (status.speaker || '未知');
+                                    document.getElementById('info-speaker').textContent = '主讲�? ' + (status.speaker || '未知');
                                     document.getElementById('info-date').textContent = '时间: ' + (status.date || '');
                                     document.getElementById('info-url').textContent = status.url;
                                     const qrContainer = document.getElementById('info-qrcode');
@@ -2020,7 +2016,7 @@
                                 }
 
                             } catch (e) {
-                                console.error('解析状态消息失败:', e);
+                                console.error('解析状态消息失�?', e);
                             }
                         }
                     });
@@ -2032,12 +2028,12 @@
 
                     mqttClient.on('close', () => {
                         isConnected = false;
-                        updateStatus('未连接', false);
+                        updateStatus('未连�?, false);
                         enableControls(false);
                     });
 
                     mqttClient.on('reconnect', () => {
-                        updateStatus('重连中... (3秒)', false);
+                        updateStatus('重连�?.. (3�?', false);
                     });
 
                 } catch (e) {
@@ -2051,7 +2047,7 @@
             // 视频同步处理函数
             function handleVideoSync(video, cmd) {
                 console.log('🎬 收到视频指令:', cmd);
-                // 允许 0.5s 的误差
+                // 允许 0.5s 的误�?
                 if (Math.abs(video.currentTime - cmd.time) > 0.5) {
                     video.currentTime = cmd.time;
                 }
@@ -2083,25 +2079,6 @@
                 }
             }
 
-            // --- 兼容性补丁 (Polyfills for older TV browsers) ---
-            if (typeof Object.assign !== 'function') {
-                Object.assign = function(target) {
-                    if (target == null) throw new TypeError('Cannot convert undefined or null to object');
-                    target = Object(target);
-                    for (var index = 1; index < arguments.length; index++) {
-                        var source = arguments[index];
-                        if (source != null) {
-                            for (var key in source) {
-                                if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
-                            }
-                        }
-                    }
-                    return target;
-                };
-            }
-            window.requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || function(callback) { return setTimeout(callback, 16); };
-            window.cancelAnimationFrame = window.cancelAnimationFrame || window.webkitCancelAnimationFrame || window.mozCancelAnimationFrame || function(id) { clearTimeout(id); };
-
             function updateStatus(text, connected) {
                 const dot = document.getElementById('statusDot');
 
@@ -2110,7 +2087,7 @@
 
                 if (connected) {
                     dot.classList.add('connected');  // 绿色
-                } else if (text.includes('连接中') || text.includes('重连')) {
+                } else if (text.includes('连接�?) || text.includes('重连')) {
                     dot.classList.add('connecting');  // 黄色闪烁
                 } else {
                     dot.classList.add('error');  // 红色
@@ -2118,7 +2095,7 @@
             }
 
             // 主动请求函数（保留但不自动调用）
-            // 可在需要时手动调用，例如添加手动刷新按钮
+            // 可在需要时手动调用，例如添加手动刷新按�?
 
             function requestStatus() {
                 if (!mqttClient || !mqttClient.connected) return;
@@ -2130,7 +2107,7 @@
                 };
 
                 mqttClient.publish(CONTROL_TOPIC, JSON.stringify(requestMsg), { qos: 0 });
-                console.log('📤 已发送状态请求');
+                console.log('📤 已发送状态请�?);
             }
 
             function enableControls(enabled) {
@@ -2150,7 +2127,8 @@
                 }
             }
 
-            // 检测是否为图片或视频 URL
+            // 检测是否为图片或视�?URL
+            // 检测是否为图片或视�?URL
             function isMediaUrl(url) {
                 const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
                 const videoExtensions = ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv'];
@@ -2163,16 +2141,16 @@
                         return { isImage: false, isVideo: true, isMedia: true };
                     }
 
-                    // 检查 extension 是否在 url 中出现 (通常在末尾或者 ? 前面)
+                    // 检�?extension 是否�?url 中出�?(通常在末尾或�?? 前面)
                     // 移除 query 参数
                     const urlNoQuery = lowerUrl.split('?')[0];
 
                     const isImage = imageExtensions.some(ext => urlNoQuery.endsWith('.' + ext));
                     const isVideo = videoExtensions.some(ext => urlNoQuery.endsWith('.' + ext));
 
-                    // 保底：如果 split 失败，直接 match
+                    // 保底：如�?split 失败，直�?match
                     if (!isImage && !isVideo) {
-                        // 尝试在完整的 URL 中查找 .ext
+                        // 尝试在完整的 URL 中查�?.ext
                         return {
                             isImage: imageExtensions.some(ext => lowerUrl.includes('.' + ext)),
                             isVideo: videoExtensions.some(ext => lowerUrl.includes('.' + ext)),
@@ -2192,27 +2170,23 @@
                 try {
                     console.log('📄 加载文件:', pdfUrl);
 
-                    // 延迟显示加载提示，避免极速加载时的瞬间闪烁
-                    window._showPlaceholderTimeout = setTimeout(() => {
-                        const placeholder = document.getElementById('placeholder');
-                        if (placeholder) {
-                            placeholder.innerHTML = '<div class="icon">⏳</div><div>加载中...</div>';
-                            placeholder.style.display = 'flex';
-                        }
-                    }, 500);
+                    // 显示加载提示
+                    const placeholder = document.getElementById('placeholder');
+                    placeholder.innerHTML = '<div class="icon">�?/div><div>加载�?..</div>';
+                    placeholder.style.display = 'flex';
 
-                    // 不再立即隐藏之前的显示元素，实现无缝切换
-                    // document.getElementById('pdfCanvas').style.display = 'none';
-                    // document.getElementById('imageDisplay').style.display = 'none';
-                    // document.getElementById('videoDisplay').style.display = 'none';
+                    // 隐藏之前的显示元�?
+                    document.getElementById('pdfCanvas').style.display = 'none';
+                    document.getElementById('imageDisplay').style.display = 'none';
+                    document.getElementById('videoDisplay').style.display = 'none';
 
-                    // 隐藏可能存在的 iframe
+                    // 隐藏可能存在�?iframe
                     const existingIframe = document.getElementById('officeIframe');
                     if (existingIframe) {
                         existingIframe.style.display = 'none';
                     }
 
-                    // 隐藏可能存在的视频播放 iframe
+                    // 隐藏可能存在的视频播�?iframe
                     const videoIframe = document.getElementById('videoIframe');
                     if (videoIframe) {
                         videoIframe.style.display = 'none';
@@ -2220,36 +2194,27 @@
                     }
                     document.getElementById('video-prompt').style.display = 'none';
 
-                    // 【互斥逻辑】如果正在呈现PPT，隐藏屏幕分享
+                    // 【互斥逻辑】如果正在呈现PPT，隐藏屏幕分�?
                     const stage = document.getElementById('agora-video-stage');
                     if (stage) stage.style.display = 'none';
 
                     // 检测是否为 KKFileView 预览页面（Excel 等）
                     if (pdfUrl.includes('/onlinePreview')) {
-                        console.log('🖼️ 检测到 KKFileView 预览页面，使用 iframe 显示');
+                        console.log('🖼�?检测到 KKFileView 预览页面，使�?iframe 显示');
 
-                        // 创建或更新 iframe
+                        // 创建或更�?iframe
                         let iframe = document.getElementById('officeIframe');
                         if (!iframe) {
                             iframe = document.createElement('iframe');
                             iframe.id = 'officeIframe';
                             iframe.style.cssText = 'width:100%; height:100%; border:none; background:white; display:none;';
-                            // 增加权限，允许全屏和脚本
-                            iframe.setAttribute('allow', 'fullscreen');
-                            iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
                             document.getElementById('previewScreen').appendChild(iframe);
                         }
 
                         iframe.onload = () => {
-                            console.log('✅ KKFileView 预览加载成功');
-                            clearTimeout(window._showPlaceholderTimeout);
-                            const placeholder = document.getElementById('placeholder');
-                            if (placeholder) placeholder.style.display = 'none';
+                            console.log('�?KKFileView 预览加载成功');
+                            placeholder.style.display = 'none';
                             iframe.style.display = 'block';
-                            
-                            // 隐藏其他层
-                            document.getElementById('pdfCanvas').style.display = 'none';
-                            document.getElementById('imageDisplay').style.display = 'none';
 
                             // 设置页码信息
                             totalPages = 1;
@@ -2258,31 +2223,23 @@
                         };
 
                         iframe.onerror = () => {
-                            console.error('❌ KKFileView 预览加载失败:', pdfUrl);
-                            clearTimeout(window._showPlaceholderTimeout);
-                            const placeholder = document.getElementById('placeholder');
-                            if (placeholder) {
-                                placeholder.innerHTML = '<div class="icon">❌</div><div>预览加载失败</div>';
-                                placeholder.style.display = 'flex';
-                            }
+                            console.error('�?KKFileView 预览加载失败:', pdfUrl);
+                            placeholder.innerHTML = '<div class="icon">�?/div><div>预览加载失败</div>';
                         };
 
                         iframe.src = pdfUrl;
                         pdfDoc = null;
-                        
-                        // 强制调用一次涂鸦初始化（稍后）
-                        setTimeout(initRemoteDrawCanvas, 1000);
                         return;
                     }
 
-                    // 检测文件类型
+                    // 检测文件类�?
                     const mediaType = isMediaUrl(pdfUrl);
 
                     if (mediaType.isVideo) {
                         console.log('🎬 检测到视频推送，尝试自动播放');
                         pendingVideoUrl = pdfUrl;
 
-                        // 显示文件名提示
+                        // 显示文件名提�?
                         try {
                             const fname = decodeURIComponent(pdfUrl.split('/').pop().split('?')[0]);
                             document.getElementById('video-filename').textContent = fname;
@@ -2291,7 +2248,7 @@
                         document.getElementById('placeholder').style.display = 'none';
                         document.getElementById('video-prompt').style.display = 'none';
 
-                        // 视频只有一页
+                        // 视频只有一�?
                         totalPages = 1;
                         currentPage = 1;
                         updatePageInfo();
@@ -2301,114 +2258,74 @@
                         // 自动播放
                         setTimeout(playVideoInIframe, 100);
                     } else if (mediaType.isImage) {
-                        console.log('🖼️ 检测到图片文件，使用图片显示');
-                        
-                        // 使用双缓冲机制防止图片加载时的白屏闪烁
-                        const currentImg = document.getElementById('imageDisplay');
-                        const nextImg = document.getElementById('imageDisplayNext');
-                        
-                        nextImg.onload = () => {
-                            console.log('✅ 图片加载成功');
-                            clearTimeout(window._showPlaceholderTimeout);
-                            const placeholder = document.getElementById('placeholder');
-                            if (placeholder) placeholder.style.display = 'none';
-                            
-                            // 交换显示层
-                            nextImg.style.display = 'block';
-                            nextImg.style.opacity = '1';
-                            currentImg.style.display = 'none';
-                            currentImg.style.opacity = '0';
-                            
-                            // 交换 ID 以便下次使用
-                            const oldId = currentImg.id;
-                            currentImg.id = nextImg.id;
-                            nextImg.id = oldId;
-                            
-                            // 隐藏其他层
-                            document.getElementById('pdfCanvas').style.display = 'none';
-                            document.getElementById('pdfCanvasNext').style.display = 'none';
-                            if (existingIframe) existingIframe.style.display = 'none';
-                            
-                            // 重新初始化涂鸦层
-                            setTimeout(initRemoteDrawCanvas, 100);
+                        console.log('🖼�?检测到图片文件，使用图片显�?);
+                        const imgEl = document.getElementById('imageDisplay');
 
-                            // 图片只有一页
+                        imgEl.onload = () => {
+                            console.log('�?图片加载成功');
+                            placeholder.style.display = 'none';
+                            imgEl.style.display = 'block';
+
+                            // 图片只有一�?
                             totalPages = 1;
                             currentPage = 1;
                             updatePageInfo();
                         };
 
-                        nextImg.onerror = () => {
-                            console.warn('图片加载失败:', pdfUrl);
-                            clearTimeout(window._showPlaceholderTimeout);
+                        imgEl.onerror = () => {
+                            console.warn('图片加载失败（可能演示已结束�?', pdfUrl);
+                            // 不再�?UI 上显示错误，演示结束�?closePresentation 会自动处�?
                         };
 
-                        nextImg.src = pdfUrl;
-                        pdfDoc = null; 
+                        imgEl.src = pdfUrl;
+                        pdfDoc = null; // 清除 PDF 文档对象
                     } else {
                         // PDF 文件处理
                         console.log('📄 检测到 PDF 文件');
-                        try {
-                            const loadingTask = pdfjsLib.getDocument({
-                                url: pdfUrl,
-                                // 增加对旧版浏览器的兼容性配置
-                                disableAutoFetch: true,
-                                disableStream: true
-                            });
-                            pdfDoc = await loadingTask.promise;
-                            totalPages = pdfDoc.numPages;
-                            if (!currentPage || currentPage < 1) currentPage = 1;
-                            if (currentPage > totalPages) currentPage = totalPages;
+                        const loadingTask = pdfjsLib.getDocument(pdfUrl);
+                        pdfDoc = await loadingTask.promise;
+                        totalPages = pdfDoc.numPages;
+                        if (!currentPage || currentPage < 1) currentPage = 1;
+                        if (currentPage > totalPages) currentPage = totalPages;
 
-                            console.log('✅ PDF 加载成功，共', pdfDoc.numPages, '页');
+                        console.log('�?PDF 加载成功，共', pdfDoc.numPages, '�?);
 
-                            clearTimeout(window._showPlaceholderTimeout);
-                            const placeholder = document.getElementById('placeholder');
-                            if (placeholder) placeholder.style.display = 'none';
-                            
-                            updatePageInfo();
+                        // 隐藏占位符，显示 Canvas
+                        placeholder.style.display = 'none';
+                        document.getElementById('pdfCanvas').style.display = 'block';
+                        updatePageInfo();
 
-                            // 渲染当前页
-                            if (currentPage > 0) {
-                                await renderPage(currentPage);
-                            }
-                            
-                            // 渲染完成后再隐藏图片层
-                            document.getElementById('imageDisplay').style.display = 'none';
-                            if (existingIframe) existingIframe.style.display = 'none';
-                        } catch (pdfError) {
-                            console.error('PDF 解析失败:', pdfError);
-                            throw pdfError;
+                        // 渲染当前�?
+                        if (currentPage > 0) {
+                            renderPage(currentPage);
                         }
                     }
                 } catch (error) {
-                    console.error('❌ 文件加载失败:', error);
+                    console.error('�?文件加载失败:', error);
                     const placeholder = document.getElementById('placeholder');
-                    if (placeholder) {
-                        placeholder.innerHTML = '<div class="icon">❌</div><div>加载失败: ' + error.message + '</div>';
-                        placeholder.style.display = 'flex';
-                    }
+                    placeholder.innerHTML = '<div class="icon">�?/div><div>加载失败: ' + error.message + '</div>';
+                    placeholder.style.display = 'flex';
                 }
             }
 
-            // 渲染防抖 + 取消机制：防止快速翻页崩溃
+            // 渲染防抖 + 取消机制：防止快速翻页崩�?
             let _viewerRenderRAF = null;
-            window._viewerActiveRenderTask = null;
-            let _mediaCleared = false; // 只清理一次其他媒体
+            let _viewerActiveRenderTask = null;
+            let _mediaCleared = false; // 只清理一次其他媒�?
 
             function renderPage(pageNum) {
                 if (!pdfDoc || pageNum < 1 || pageNum > pdfDoc.numPages) return;
 
-                // 取消之前排队的帧，只保留最新请求
+                // 取消之前排队的帧，只保留最新请�?
                 if (_viewerRenderRAF) {
                     cancelAnimationFrame(_viewerRenderRAF);
                     _viewerRenderRAF = null;
                 }
 
-                // 取消正在进行的渲染任务
-                if (window._viewerActiveRenderTask) {
-                    try { window._viewerActiveRenderTask.cancel(); } catch (e) { }
-                    window._viewerActiveRenderTask = null;
+                // 取消正在进行的渲染任�?
+                if (_viewerActiveRenderTask) {
+                    try { _viewerActiveRenderTask.cancel(); } catch (e) { }
+                    _viewerActiveRenderTask = null;
                 }
 
                 _viewerRenderRAF = requestAnimationFrame(() => {
@@ -2420,15 +2337,17 @@
             async function _doViewerRenderPage(pageNum) {
                 if (!pdfDoc || pageNum < 1 || pageNum > pdfDoc.numPages) return;
 
-                // 首次渲染时清理其他媒体
+                // 首次渲染时清理其他媒体（只做一次，避免重复 DOM 操作�?
                 if (!_mediaCleared) {
                     _mediaCleared = true;
-                    ['imageDisplay', 'imageDisplayNext', 'videoDisplay'].forEach(id => {
-                        const el = document.getElementById(id);
-                        if (el) { el.style.display = 'none'; el.src = ''; }
-                    });
+                    const imgDisplay = document.getElementById('imageDisplay');
+                    if (imgDisplay) { imgDisplay.style.display = 'none'; imgDisplay.src = ''; }
+                    const videoDisplay = document.getElementById('videoDisplay');
+                    if (videoDisplay) { videoDisplay.style.display = 'none'; }
                     const videoPrompt = document.getElementById('video-prompt');
                     if (videoPrompt) videoPrompt.style.display = 'none';
+                    const infoScreen = document.getElementById('info-screen');
+                    if (infoScreen) infoScreen.style.display = 'none';
                     const officeIframe = document.getElementById('officeIframe');
                     if (officeIframe) officeIframe.style.display = 'none';
                     const videoIframe = document.getElementById('videoIframe');
@@ -2437,16 +2356,15 @@
                     if (placeholder) placeholder.style.display = 'none';
                 }
 
-                const currentCanvas = document.getElementById('pdfCanvas');
-                const nextCanvas = document.getElementById('pdfCanvasNext');
+                // Show canvas
+                const canvas = document.getElementById('pdfCanvas');
+                canvas.style.display = 'block';
 
                 try {
                     const page = await pdfDoc.getPage(pageNum);
-                    
-                    const sysDpr = window.devicePixelRatio || 1;
-                    // 对 TV 设备限制最高分辨率，防止 GPU 内存溢出
-                    const targetDpr = Math.min(sysDpr, 1.5); // 进一步降低以求稳定
-                    
+                    const ctx = canvas.getContext('2d');
+
+                    const devicePixelRatio = window.devicePixelRatio || 1;
                     const container = document.getElementById('previewScreen');
                     const padding = document.fullscreenElement ? 0 : 40;
                     const containerWidth = container.clientWidth - padding;
@@ -2456,41 +2374,25 @@
                     const scaleX = containerWidth / viewport.width;
                     const scaleY = containerHeight / viewport.height;
                     const baseScale = Math.min(scaleX, scaleY);
-                    const scale = baseScale * targetDpr;
+                    const scale = Math.min(baseScale * devicePixelRatio, 3);
                     const scaledViewport = page.getViewport({ scale: scale });
 
-                    // 准备“下一张”画布
-                    nextCanvas.width = scaledViewport.width;
-                    nextCanvas.height = scaledViewport.height;
-                    nextCanvas.style.width = (scaledViewport.width / targetDpr) + 'px';
-                    nextCanvas.style.height = (scaledViewport.height / targetDpr) + 'px';
+                    canvas.width = scaledViewport.width;
+                    canvas.height = scaledViewport.height;
+                    canvas.style.width = (scaledViewport.width / devicePixelRatio) + 'px';
+                    canvas.style.height = (scaledViewport.height / devicePixelRatio) + 'px';
 
                     const renderContext = {
-                        canvasContext: nextCanvas.getContext('2d'),
+                        canvasContext: ctx,
                         viewport: scaledViewport
                     };
 
-                    window._viewerActiveRenderTask = page.render(renderContext);
-                    await window._viewerActiveRenderTask.promise;
-                    window._viewerActiveRenderTask = null;
-
-                    // 渲染完成后，交换画布显示
-                    nextCanvas.style.display = 'block';
-                    nextCanvas.style.opacity = '1';
-                    currentCanvas.style.display = 'none';
-                    currentCanvas.style.opacity = '0';
-                    
-                    // 交换 ID
-                    const oldId = currentCanvas.id;
-                    currentCanvas.id = nextCanvas.id;
-                    nextCanvas.id = oldId;
-
-                    // 重新初始化涂鸦层
-                    setTimeout(initRemoteDrawCanvas, 50);
-
-                    console.log('✓ 页面', pageNum, '渲染完成并切换');
+                    _viewerActiveRenderTask = page.render(renderContext);
+                    await _viewerActiveRenderTask.promise;
+                    _viewerActiveRenderTask = null;
+                    console.log('�?页面', pageNum, '渲染完成');
                 } catch (error) {
-                    window._viewerActiveRenderTask = null;
+                    _viewerActiveRenderTask = null;
                     if (error.name !== 'RenderingCancelledException') {
                         console.error('渲染失败:', error);
                     }
@@ -2498,7 +2400,7 @@
             }
             // (Old playVideoInIframe removed as it's dead code, a newer version exists below)
 
-            // 监听窗口大小变化（全屏/退出全屏时自动重绘）
+            // 监听窗口大小变化（全�?退出全屏时自动重绘�?
             // (Moved to the end of file to handle all media types)
 
             // 设置纯净的页面标题，减少全屏提示干扰
@@ -2506,7 +2408,7 @@
 
             function sendCommand(action, fromButton = false) {
                 if (!mqttClient || !isConnected) {
-                    alert('请先连接 MQTT 服务器');
+                    alert('请先连接 MQTT 服务�?);
                     return;
                 }
 
@@ -2528,9 +2430,9 @@
 
                 mqttClient.publish(CONTROL_TOPIC, JSON.stringify(command), { qos: 1 }, (err) => {
                     if (err) {
-                        console.error('发送失败:', err);
+                        console.error('发送失�?', err);
                     } else {
-                        console.log('✓ 指令已发送:', action);
+                        console.log('�?指令已发�?', action);
                     }
                 });
             }
@@ -2539,9 +2441,9 @@
                 return;
             }
 
-            // 键盘快捷键支持
+            // 键盘快捷键支�?
             document.addEventListener('keydown', (e) => {
-                // F 键全屏随叫随到，不仅限于连接状态
+                // F 键全屏随叫随到，不仅限于连接状�?
                 if (e.key === 'f' || e.key === 'F') {
                     e.preventDefault();
                     toggleFullscreen();
@@ -2571,7 +2473,7 @@
                     const originalText = button.innerHTML;
 
                     // 显示成功反馈
-                    button.innerHTML = '✅ 已复制';
+                    button.innerHTML = '�?已复�?;
                     button.style.background = '#4caf50';
 
                     // 2秒后恢复原样
@@ -2629,7 +2531,7 @@
                 remoteDrawCanvas.style.width = targetRect.width + 'px';
                 remoteDrawCanvas.style.height = targetRect.height + 'px';
 
-                // 设置分辨率
+                // 设置分辨�?
                 if (targetEl.tagName === 'CANVAS') {
                     remoteDrawCanvas.width = targetEl.width;
                     remoteDrawCanvas.height = targetEl.height;
@@ -2643,7 +2545,7 @@
                 remoteDrawCtx.lineCap = 'round';
                 remoteDrawCtx.lineJoin = 'round';
 
-                console.log('✅ 涂鸦画布已初始化', targetEl.tagName);
+                console.log('�?涂鸦画布已初始化', targetEl.tagName);
             }
 
             function handleDrawData(data) {
@@ -2854,13 +2756,13 @@
             setInterval(() => {
                 if (currentPage !== remotePreviousPage) {
                     clearRemoteDrawing();
-                    // 只要有内容显示，就尝试初始化涂鸦层
+                    // 只要有内容显示，就尝试初始化涂鸦�?
                     const pdfVisible = document.getElementById('pdfCanvas').style.display !== 'none';
                     const imgVisible = document.getElementById('imageDisplay').style.display !== 'none';
                     const videoVisible = document.getElementById('videoDisplay').style.display !== 'none';
 
                     if (pdfVisible || imgVisible || videoVisible) {
-                        setTimeout(initRemoteDrawCanvas, 200); // 延迟初始化
+                        setTimeout(initRemoteDrawCanvas, 200); // 延迟初始�?
                     }
                     remotePreviousPage = currentPage;
                 }
@@ -2873,7 +2775,7 @@
                     clearTimeout(window.resizeTimer);
                     window.resizeTimer = setTimeout(() => {
                         renderPage(currentPage);
-                        // PDF渲染后会自动调用 sizes，但为了保险：
+                        // PDF渲染后会自动调用 sizes，但为了保险�?
                         setTimeout(initRemoteDrawCanvas, 50);
                     }, 100);
                 } else {
@@ -2902,13 +2804,13 @@
                 }
 
 
-                // 隐藏其他层
+                // 隐藏其他�?
                 document.getElementById('pdfCanvas').style.display = 'none';
                 document.getElementById('imageDisplay').style.display = 'none';
                 const officeIframe = document.getElementById('officeIframe');
                 if (officeIframe) officeIframe.style.display = 'none';
 
-                // 判断是否是外部链接 (Bilibili/YouTube)
+                // 判断是否是外部链�?(Bilibili/YouTube)
                 const isExternal = pendingVideoUrl.includes('player.bilibili.com') || pendingVideoUrl.includes('youtube.com');
 
                 if (isExternal) {
@@ -2955,3 +2857,4 @@
 </body>
 
 </html>
+

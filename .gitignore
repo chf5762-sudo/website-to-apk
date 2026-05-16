@@ -1,3 +1,5 @@
 *.iml
 .gradle
 ./app/build
+node_modules/
+dist/
