@@ -1,3 +1,8 @@
+# 1. ??????? MQTT ? (5.3.4)
+curl -L "https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js" -o "app/src/main/assets/www/scripts/mqtt.min.js"
+
+# 2. ???? HTML
+cat <<EOF > app/src/main/assets/www/index_v3s.html
 <!DOCTYPE html>
 <html>
 <head>
@@ -59,3 +64,4 @@
     </script>
 </body>
 </html>
+EOF
