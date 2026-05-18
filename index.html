@@ -11,11 +11,11 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="观众版">
-    <script src="https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/mqtt/2.18.8/mqtt.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.bootcdn.net/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';
     </script>
     <style>
         * {
@@ -937,7 +937,7 @@
 
         <script>
             window.BEMFA_KEY = '3eb42d69d8b226abe22024d648975f8a';
-            window.MQTT_URL = 'wss://broker.emqx.io:8084/mqtt';
+            window.MQTT_URL = 'ws://broker.emqx.io:8083/mqtt';
             window.CONTROL_TOPIC = window.BEMFA_KEY + '/PPT001';
             window.STATUS_TOPIC = window.BEMFA_KEY + '/PPT002';
             let BEMFA_KEY = window.BEMFA_KEY;
