@@ -165,7 +165,7 @@
         // --- 全局配置 (ES5) ---
         var BASE_URL = 'http://easyshow.beundredig.eu.org'; // 强制非加密
         var BEMFA_KEY = '3eb42d69d8b226abe22024d648975f8a';
-        var MQTT_URL = 'ws://broker.emqx.io:8083/mqtt'; // 强制非加密端口
+        var MQTT_URL = 'wss://broker.emqx.io:8084/mqtt'; // 使用加密的 wss 端口
         var CONTROL_TOPIC = BEMFA_KEY + '/PPT001';
         var STATUS_TOPIC = BEMFA_KEY + '/PPT002';
         var SESSION_ID = 'tv_' + Date.now() + '_' + Math.floor(Math.random() * 1000);

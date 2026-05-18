@@ -1,8 +1,8 @@
-﻿name: Build APK (Debug Only)
+name: Build APK (Debug Only)
 
 on:
   push:
-    branches: [ "sync/hbuilder-tv-app-20260516" ]
+    branches: [ "sync/hbuilder-tv-app-20260516", "main" ]
   pull_request:
     branches: [ "sync/hbuilder-tv-app-20260516" ]
   workflow_dispatch:
