@@ -837,8 +837,8 @@
 </head>
 
 <body>
-    <!-- 观众昵称输入弹窗 -->
-    <div id="nickname-modal">
+    <!-- 观众昵称输入弹窗 (默认隐藏，电视端自动登录) -->
+    <div id="nickname-modal" class="hidden">
         <div class="nickname-box">
             <div class="nickname-title">👋 欢迎加入会议</div>
             <div class="nickname-sub">输入您的昵称，或直接跳过由系统分配编号</div>
@@ -1108,6 +1108,7 @@
 
                 const fit = state.fit === 'cover' ? 'cover' : 'contain';
                 let html = '';
+
                 if (state.type === 'text') {
                     const text = state.text || state.content || '';
                     html = `<div class="screen-text">${String(text).replace(/[&<>]/g, s => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[s]))}</div>`;
@@ -1115,8 +1116,13 @@
                     const src = state.url || state.content || '';
                     html = `<img class="screen-media" style="object-fit:${fit};" src="${src}" alt="">`;
                 } else if (state.type === 'video') {
-                    const src = state.url || state.content || '';
-                    html = `<video class="screen-media" style="object-fit:${fit};" src="${src}" controls autoplay playsinline></video>`;
+                    const src = formatMediaUrl(state.url || state.content || '');
+                    // 如果转换后是 bilibili 或 youtube 播放器，改用 iframe
+                    if (src.includes('bilibili.com') || src.includes('youtube.com')) {
+                        html = `<iframe class="screen-frame" src="${src}" style="width:100%;height:100%;border:none;background:#000;" referrerpolicy="no-referrer" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
+                    } else {
+                        html = `<video class="screen-media" style="object-fit:${fit};" src="${src}" controls autoplay playsinline></video>`;
+                    }
                 } else if (state.type === 'svg') {
                     let svgContent = String(state.content || '');
                     if (!/preserveAspectRatio\s*=/.test(svgContent)) {
@@ -1129,13 +1135,14 @@
                     html = `<div class="screen-frame" style="width:100%;height:100%;background:#000;overflow:hidden;display:flex;align-items:center;justify-content:center;">${svgContent}</div>`;
                 } else if (state.type === 'html' || state.type === 'iframe') {
                     if (state.url) {
-                        html = `<iframe referrerpolicy="no-referrer" allow="autoplay; encrypted-media; fullscreen" class="screen-frame" src="${state.url}" style="width:100%;height:100%;border:none;background:#fff;"></iframe>`;
+                        const src = formatMediaUrl(state.url);
+                        html = `<iframe class="screen-frame" src="${src}" style="width:100%;height:100%;border:none;background:#fff;" referrerpolicy="no-referrer" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
                     } else {
                         html = `<div class="screen-frame" style="width:100%;height:100%;background:#000;">${state.content || ''}</div>`;
                     }
                 } else if (state.type === 'pdf' || state.type === 'doc') {
                     const src = state.url || '';
-                    html = `<iframe class="screen-frame" src="${src}"></iframe>`;
+                    html = `<iframe class="screen-frame" src="${src}" allowfullscreen></iframe>`;
                 }
 
                 layer.innerHTML = html;
@@ -1328,15 +1335,8 @@
                 const displayName = room || 'admin';
                 document.getElementById('welcome-title').textContent = room ? `HELLO, ${displayName.toUpperCase()}` : 'SYSTEM ONLINE';
 
-                // 显示昵称弹窗，让观众选择名字后再连接
-                // (connectMQTT 由 confirmNickname / skipNickname 触发)
-                if (window.cordova || navigator.userAgent.toLowerCase().indexOf('android') > -1) {
-                    skipNickname();
-                } else {
-                    document.getElementById('nickname-modal').classList.remove('hidden');
-                    // 自动聚焦昵称输入框
-                    setTimeout(() => { const el = document.getElementById('nickname-input'); if (el) el.focus(); }, 100);
-                }
+                // 电视端自动登录：跳过昵称输入环节
+                skipNickname();
             });
 
             // --- 全局安全防护 (显示端强制开启) ---
@@ -2163,6 +2163,18 @@
                 }
             }
 
+            // 辅助函数：转换视频链接为播放器专用链接（使用 HTML5 移动端播放器，规避 Referer 校验拦截）
+            function formatMediaUrl(url) {
+                if (!url) return '';
+                // Bilibili BV 转换
+                const bvMatch = url.match(/video\/(BV[a-zA-Z0-9]+)/i);
+                if (bvMatch) return `https://www.bilibili.com/blackboard/html5mobileplayer.html?bvid=${bvMatch[1]}&autoplay=1&muted=0&page=1&high_quality=1`;
+                // Bilibili av 转换
+                const avMatch = url.match(/video\/(av[0-9]+)/i);
+                if (avMatch) return `https://www.bilibili.com/blackboard/html5mobileplayer.html?aid=${avMatch[1].replace('av', '')}&autoplay=1&muted=0&page=1&high_quality=1`;
+                return url;
+            }
+
             // 检测是否为图片或视频 URL
             // 检测是否为图片或视频 URL
             function isMediaUrl(url) {
@@ -2847,7 +2859,8 @@
                 if (officeIframe) officeIframe.style.display = 'none';
 
                 // 判断是否是外部链接 (Bilibili/YouTube)
-                const isExternal = pendingVideoUrl.includes('player.bilibili.com') || pendingVideoUrl.includes('youtube.com');
+                const formattedUrl = formatMediaUrl(pendingVideoUrl);
+                const isExternal = formattedUrl.includes('bilibili.com') || formattedUrl.includes('youtube.com');
 
                 if (isExternal) {
                     let videoIframe = document.getElementById('videoIframe');
@@ -2856,9 +2869,11 @@
                         videoIframe.id = 'videoIframe';
                         videoIframe.style.cssText = 'width:100%; height:100%; border:none; background:black; position:absolute; top:0; left:0; z-index:200;';
                         videoIframe.allow = "autoplay; fullscreen";
+                        videoIframe.setAttribute('referrerpolicy', 'no-referrer');
+                        videoIframe.referrerPolicy = "no-referrer";
                         document.body.appendChild(videoIframe);
                     }
-                    videoIframe.src = pendingVideoUrl;
+                    videoIframe.src = formattedUrl;
                     videoIframe.style.display = 'block';
                 } else {
                     // MP4 / WebM

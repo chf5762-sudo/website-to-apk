@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MQTT Bilibili Video Pusher</title>
+    <script src="https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js"></script>
+</head>
+<body>
+    <h1 id="status">Connecting to MQTT...</h1>
+    <script>
+        // Use standard WebSockets (ws://) or Secure WebSockets (wss://)
+        // Public EMQX broker is used by the app
+        const client = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
+        
+        client.on('connect', () => {
+            document.getElementById('status').innerText = 'Connected! Publishing video packet...';
+            
+            // Format identical to presenter status JSON structure
+            const payload = JSON.stringify({
+                pdfUrl: "https://www.bilibili.com/video/BV1ux411d75J",
+                currentPage: 1,
+                totalPages: 1,
+                action: "push_video", // matching any specific action if needed
+                t: Date.now() // current timestamp to bypass lastScreenStateTs check
+            });
+            
+            client.publish('3eb42d69d8b226abe22024d648975f8a/PPT002', payload, { qos: 1, retain: true }, (err) => {
+                if (err) {
+                    document.getElementById('status').innerText = 'Error: ' + err.message;
+                } else {
+                    document.getElementById('status').innerText = 'Successfully Published Bilibili Video Packet!';
+                    console.log('Published!');
+                }
+            });
+        });
+
+        client.on('error', (err) => {
+            document.getElementById('status').innerText = 'Connection Error: ' + err.message;
+        });
+    </script>
+</body>
+</html>
